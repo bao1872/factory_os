@@ -3,6 +3,7 @@
 Status: **Accepted**
 Date: 2026-09-07（Proposed → Accepted，用户裁决 Accept with amendments）
 Owner: 用户 Gate 裁决（Phase 0 STOP resolution）
+Follow-up（2026-09-07，dependency-closure STOP）：本决策的安装 profile 与 8-addon manifest 依赖闭包存在冲突（`factory_os_supply`→`mrp` 使 Profile 1 强制装 MRP；delivery/dashboard 计划依赖偏高；purchasing 单调分类与 supply→purchase 的 Inventory-only substrate 冲突）。修订提议见 **ADR-007（Status: Proposed，未采纳）**；裁决前本决策仍为有效权威，affected evidence docs 仅加 BLOCKED 标记。
 
 ## Context
 
@@ -101,7 +102,7 @@ Phase 0 出口评审发现两条 Hard STOP（出口状态 BLOCKED，见 native-b
 - `addon-dependency-map.md`：§2/§4/§5 manifest 约束同步。
 - native-behavior-audit / technical-risks：Gate 由 BLOCKED 转 PASS（条件满足后）。
 - 治理：ARCHITECTURAL 语义变更 → Governance Gate STALE → full re-audit → COMPLETE（governance-audit v1.0.2）。
-- Phase 1 将实现：profile→引擎安装映射与单调校验（引擎在而 flag 关的一致性检测）、orders 去 sale_stock 依赖、supply 的 sale.order 库存扩展、MTO 产品建模按 profile 校验。
+- 实现期属主（2026-09-07 phase attribution 更正，不改决策本体；与开发计划 §41-§45 Gate 对齐）：**Phase 1** 实现 profile→引擎安装映射与单调校验（引擎在而 flag 关的一致性检测）与 profile installer 基础；**Phase 2** 落实 `factory_os_orders` manifest（core + sale，无 sale_stock）；**Phase 3** 实现 `factory_os_supply` 的 sale.order 库存/采购扩展；**Phase 4** 实现 MRP/BOM/MTO 生产集成与 MTO route 按 profile 校验。依赖闭包边界详见 ADR-007（Proposed）。
 
 ## Invariants / Authorities Affected
 
@@ -113,7 +114,7 @@ Phase 0 出口评审发现两条 Hard STOP（出口状态 BLOCKED，见 native-b
 ## Verification
 
 - 原生契约证据：Test E/F/G/H 运行时输出（native-behavior-audit §8）；Odoo 19.x 升级后用 `scripts/audit/phase0/` harness 重跑 A–H。
-- Phase 1 验收：初始化向导按 profile 建库（G/H 断言：低 profile 无引擎模型、旧单零回溯）；monotonic 校验（引擎在而 flag 关被阻止）；MTO 行为仅 Profile 2 存在（E/H3 断言）；orders 无 sale_stock 依赖。
+- 验收按实现期属主分相（见 Consequences）：Phase 1 — 初始化向导按 profile 建库（G/H 断言：低 profile 无引擎模型、旧单零回溯）+ monotonic 校验；Phase 2 — orders manifest 无 sale_stock 依赖；Phase 4 — MTO 行为仅 Profile 2 存在（E/H3 断言）与 MTO route 校验。
 - 治理验收：governance-audit v1.0.2 全 PASS；grep 无旧 capability/addon 绝对规则残留、无 `factory_os_orders`+`sale_stock`、无 Purchase-only 语义。
 
 ## Supersedes / Superseded By

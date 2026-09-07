@@ -4,22 +4,22 @@ Date: 2026-09-07（Phase 0 r2 复核；全新数据库复跑）
 Authorities: ADR-002 / ADR-003 / ADR-004 · system-invariants #2/#3/#14 · 开发计划 §0.1/§6/§10/§19-§20/§24-§26/§39
 方法：在全新 DB `factory_phase0_r2`（初始安装 sale_management,stock,purchase,mrp → 72 模块实测）上用 `odoo shell` 脚本做 create→action→全局 counts 差量 + 记录级断言；每次脚本独立 commit。脚本存 `/tmp/phase0_audit/*.py`（临时，不入库）；结果文件 `r2_*.txt` 同目录。STOP resolution（E–H）在 `factory_phase0_mto`（72 模块）与 `factory_phase0_min`（54→61→64 模块渐进）两个新库复现，证据见 §8。
 
-## 0. Phase 0 Gate Status（2026-09-07 Accepted closure）
+## 0. Phase 0 Gate Status（2026-09-07 dependency-closure STOP）
 
 ```
-Phase 0 evidence collection: complete
-Phase 0 Gate: PASS — awaiting user authorization for Phase 1
-闭环节点（2026-09-07）：ADR-006 = Accepted；authority 文档一致；
-  Test E/F/G/H 证据未变；无矛盾 capability 语义残留；
-  addon-dependency-map 反映 8-addon 决策（orders 去 sale_stock）；
-  purchasing→inventory 显式；无原生引擎降级承诺。
-历史：STOP A/B → BLOCKED（STOP resolution commit a19840b）→ ADR-006 Proposed →
-  user Accept with amendments → 本 commit 收口为 PASS。
+Phase 0 evidence collection: complete（含 STOP E–H 闭环）
+Phase 0 Gate: BLOCKED — addon dependency closure inconsistent with ADR-006
+原因：8-addon manifest 依赖闭包 ≠ Accepted ADR-006 Technical Installation Profiles——
+  supply→mrp（Profile 1 物理变 Profile 2）；delivery→production/quality（基础发货强制 MRP/QC）；
+  dashboard→全内部 addon（最高引擎面）；purchasing 单调分类与 Inventory-only substrate 冲突。
+  证据：addon-dependency-map §6 Dependency-Closure Matrix；裁决载体 ADR-007（Proposed）。
+历史：STOP A/B → BLOCKED（a19840b）→ ADR-006 Proposed → user Accept with amendments
+  → PASS（15fc95e）→ dependency-closure STOP（本 commit）→ BLOCKED（awaiting ADR-007）。
 ```
 
-- STOP A 经 **ADR-006（Status: Accepted）** 裁决：Option 1 = Installed-addon profiles + monotonic capability upgrades（引擎型能力单调、8-addon、purchasing→inventory、Profile 0–3、delivery 业务层语义、Business Preset ≠ Technical Profile）。受影响权威已同步（progressive-adoption v1.1 / configuration-schema / configuration-dependency-graph / 开发计划 / addon-dependency-map）。
-- STOP B 由 Test E/F/H3 运行时复现解决（§8）：MTO 激活后 SO 确认**会**自动建 MO（E/H3）与 RFQ（F）——原 Test C 的过宽结论已在 §3.1 更正；MTO 行为现属 MRP Profile 的受控能力（非 flag 可关）。
-- **不自动授权 Phase 1**：本文件为证据收口；Phase 1 放行由用户单独授权。
+- STOP A 经 **ADR-006（Accepted）** 裁决为 Option 1（installed-addon profiles + monotonic upgrades）；本 BLOCK 不是推翻该裁决，而是其"profile 契约"与**计划 manifest 依赖闭包**的执行面冲突（见 addon-dependency-map §6）。ADR-007（**Proposed**）给出目标闭包与 purchasing workflow 语义修订，裁决前 authority 不改写。
+- STOP B（MTO 原生行为）已由 Test E/F/H3 闭环（§8），不再构成阻塞项；MTO 受控归 Profile 2 不变。
+- **不自动授权 Phase 1**：Phase 0 出口放行待 ADR-007 用户裁决与闭包一致后另行授权。
 
 ## 1. 产品类型与库存语义（Odoo 19 与旧记忆的关键差异）
 

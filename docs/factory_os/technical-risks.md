@@ -3,32 +3,40 @@
 Date: 2026-09-07（Phase 0 r2）
 来源：全部来自本 Phase 实测（native-behavior-audit / addon-dependency-map / security-baseline / state-map 的证据行）。每条含证据、影响、建议与责任 Phase。风险等级：P0（必须 Phase 1 前决策/缓解）、P1（Phase 1-3 内处理）、P2（观察项）。
 
-## Gate Status（2026-09-07 Accepted closure）
+## Gate Status（2026-09-07 dependency-closure STOP）
 
 ```
-Phase 0 evidence collection: complete
-Phase 0 Gate: PASS — awaiting user authorization for Phase 1
-闭环节点：ADR-006 = Accepted（Option 1 + amendments）；R1 架构冲突已裁决；
-  R10 MTO 行为归 MRP Profile 受控能力；authority 文档一致；Test E–H 证据未变。
-历史：r2 PASS → user STOP（BLOCKED, a19840b）→ ADR-006 Proposed →
-  user Accept with amendments → 本 commit 收口为 PASS。
+Phase 0 evidence collection: complete（含 STOP E–H 闭环）
+Phase 0 Gate: BLOCKED — addon dependency closure inconsistent with ADR-006（awaiting ADR-007 user decision）
+原因：8-addon manifest 依赖闭包 ≠ Accepted ADR-006 Technical Installation Profiles——
+  supply→mrp（Profile 1 变 Profile 2）；delivery→production/quality（基础发货强制 MRP/QC）；
+  dashboard→全内部 addon；purchasing 单调分类与 Inventory-only substrate 冲突。
+  详见 R11 / addon-dependency-map §6 矩阵 / ADR-007（Proposed）。
+历史：r2 PASS → user STOP（BLOCKED, a19840b）→ ADR-006 Proposed → user Accept with amendments
+  → PASS（15fc95e）→ dependency-closure STOP（本 commit）→ BLOCKED（awaiting ADR-007）。
 ```
 
-R1 由"未决架构冲突"转为 **已裁决**（ADR-006 Accepted）；残留执行风险转 Phase 1（单调校验/探测、orders 去 sale_stock、profile 安装）。不自动授权 Phase 1。
+R1（capability 分层）与 R10（原生 MTO）的**架构裁决不变**（ADR-006 Accepted）；本 BLOCK 是其执行面（manifest 闭包）未闭合的新发现。不自动授权 Phase 1。
 
 ## P0
 
-### R1 capability 分层 vs 原生引擎联动：已裁决（ADR-006 Accepted）→ 残留为 Phase 1 执行风险
+### R1 capability 分层 vs 原生引擎联动：已裁决（ADR-006 Accepted）→ 残留为分相执行风险（Phase 1/2/3/4）
 - 证据：测试 A/B——只要 stock 已装，SO/PO 确认对任何 consu 货物（含非 storable plain）都生成 picking/move（A3R S00009/S00010、B P00001/P00002）；G——Safe Minimal（仅 sale，54 模块）下引擎模型全部不存在、Goods SO 确认零物流对象；H2/H3——同库渐进装 stock/mrp 后旧单零回溯、新单即入引擎。反向结论：**"已装引擎但 flag 关"不存在"回到无库存事务"的状态**。
 - 裁决（2026-09-07）：**ADR-006 Accepted** = Option 1（Installed-addon profiles + monotonic upgrades）+ 强制修订——引擎型 capability（inventory/formal MRP，及进入 profile 的 purchasing/quality）单调、禁止假关闭；保持 8-addon（orders 去 sale_stock）；v0.1 purchasing→inventory；Profile 0–3 冻结；delivery 为业务层能力（不绑 Odoo delivery addon）；Business Preset ≠ Technical Installation Profile。受影响权威已同步（progressive-adoption v1.1 / configuration-schema / configuration-dependency-graph / 开发计划 / addon-dependency-map）。
-- 残留执行风险（Phase 1）：profile→引擎安装映射与单调校验、"引擎在而 flag 关"一致性探测、orders manifest 去 sale_stock、supply 对 sale.order 的库存扩展、MTO 产品建模按 profile 校验（R10）。Phase 1 验收以 native-behavior-audit §8 E–H + harness 重跑为准。
+- 残留执行风险（实现期属主，2026-09-07 phase attribution 更正）：profile→引擎安装映射与单调校验/"引擎在而 flag 关"一致性探测 = **Phase 1**；orders manifest 去 sale_stock = **Phase 2**；supply 对 sale.order 的库存/采购扩展 = **Phase 3**；MTO 产品建模与 route 按 profile 校验 = **Phase 4**（R10）。验收以 native-behavior-audit §8 E–H + harness 重跑为准。另见 R11（依赖闭包冲突，ADR-007 Proposed）。
 - 责任：Phase 1（按 ADR-006 实现）；Phase 0 风险本身关闭。
 
 ### R10 原生 MTO：SO 确认自动建 MO/RFQ，flag 无法抑制（STOP B 补测结论）
 - 证据：Test E（factory_phase0_mto）——激活 `stock.route_warehouse0_mto` + 产品 route=[Manufacture, MTO] + BoM，SO=S00002 确认即 **mo 0→1**（WH/MO/00001 confirmed, origin=S00002, qty=3.0），sale 行成品 move proc=make_to_order，`action_view_mrp_production()['res_id']==mo.id`；Test F——MTO+Buy+供应商 → SO 确认即 **po/rfq 0→1**（P00001 draft, origin=S00001）；H3 在同库渐进场景复现（mo 0→1）。配方对齐官方 sale_mrp 测试。
 - 影响：原 Test C（is_mto=False）的「任何场景都不自动建 MO」过宽结论撤回；**MTO 配置 + 引擎已装时，`mrp_production_enabled=false` 无法阻止原生自动 MO/RFQ**——强化 R1 与 ADR-006；低能力级库若误配 MTO route 会绕过"无库存/MO 事务"承诺。
-- 建议（ADR-006 Accepted 后）：MTO route 分配属 **MRP Profile 受控能力**（Profile 2，native-behavior-audit §0/§9）；产品建模/导入向导只在含 mrp 的 profile 库允许 MTO route，低能力级库阻止分配；orders 服务层对带 MTO 意图的 SO 行在低 profile 库校验（Phase 1 实现，验收 = Test E/H3 断言）。
-- 责任：Phase 1（产品建模向导 + orders 校验 + profile 单调探测）。
+- 建议（ADR-006 Accepted 后）：MTO route 分配属 **MRP Profile 受控能力**（Profile 2，native-behavior-audit §0/§9）；产品建模/导入向导只在含 mrp 的 profile 库允许 MTO route，低能力级库阻止分配；orders 服务层对带 MTO 意图的 SO 行在低 profile 库校验（实现期属主 = **Phase 4**，与 MRP profile 交付同步；Phase 1 仅落地 profile 单调探测基础；验收 = Test E/H3 断言）。
+- 责任：Phase 1（profile 单调探测基础）+ Phase 4（产品建模向导 MTO 校验 + orders 校验）。
+
+### R11 Profile↔manifest 依赖闭包冲突：Profile 1/基础 Delivery 被 manifest 强制升级（STOP，ADR-007）
+- 证据：开发计划 §8（L515-524）supply deps 含 **mrp**、§23（L972-980）delivery deps 含 production/quality/delivery、§28（L1107-1115）dashboard deps = 全部内部 addon；quality 原生依赖未显式。原生 manifest 实测（odoo-19/addons）：`sale_mrp` auto=[mrp,sale_stock]、`mrp_account` auto=[mrp,stock_account]、`purchase_mrp` auto=[mrp,purchase_stock]、`sale_stock` auto=[sale,stock_account]、`purchase_stock` auto=[stock_account,purchase]、`sale_purchase` auto=[sale,purchase]。闭包推演（addon-dependency-map §6 矩阵）：装 supply → mrp 随装 → sale_mrp/mrp_account/purchase_mrp 自动桥 → **Profile 1 物理含 MRP 引擎与 MTO 自动建 MO/RFQ 机制（Profile 2 专属，Test E/H3）**；装 delivery（base）→ production→supply→mrp + quality addon → 基础发货即强制 MRP/QC/carrier；dashboard→全引擎面。
+- 影响：与 ADR-006 §A/§D（Profile 2 才装 MRP、delivery 为 Inventory 上业务层能力、8-addon）矛盾——ADR-006 刚消灭的"引擎在、能力未开"假关闭状态在 manifest 闭包面复现；governance-audit v1.0.2 的 18 项检查无"profile↔manifest 闭包"项 → 漏检（本 STOP 已补为永久检查）。
+- 处置（本 STOP resolution）：Gate 回 **BLOCKED**；保持 8-addon（不新增第 9 桥）；目标闭包与 purchasing workflow 语义修订入 **ADR-007（Status: Proposed，未采纳）**（supply 去 mrp → core+orders+stock+purchase；delivery → core+orders+stock；dashboard → core+orders + registry 守卫；quality 无 mrp 硬依赖；production → core+orders+supply+mrp）；裁决前不改 manifest 目标、不实现。Inventory-only 的 purchase substrate 残余风险：原生 PO 创建入口需 Factory OS 角色安全收紧（Phase 1 不授予原生 purchase 组于未启用采购工厂）。
+- 责任：用户 Gate 裁决（ADR-007）+ Phase 1（profile installer 按闭包契约校验）+ Phase 3/4（按新边界实现）。
 
 ### R2 Community 无 quality addon → 质检与成品质检 Gate 全自建
 - 证据：addon 目录与 registry 均无 quality.check/point/alert（EXIST=False）；无 enterprise。

@@ -3,6 +3,16 @@
 Date: 2026-09-07（Phase 0 r2）
 Authorities: 开发计划 §3（addon 结构）、§39/§40；本文件把"计划依赖"与"Community 原生可用性"对照，供 manifest 设计与 Phase 1 验收使用。
 
+## 0. Gate Status（2026-09-07 dependency-closure STOP）
+
+```
+Phase 0 Gate: BLOCKED — addon dependency closure inconsistent with ADR-006（awaiting ADR-007 user decision）
+原因：§2 表中 factory_os_supply / factory_os_delivery / factory_os_dashboard 的计划 manifest
+  闭包会强制安装高于其所属 profile 的原生引擎（MRP/quality），见 §6 Dependency-Closure Matrix。
+裁决载体：ADR-007（docs/decisions/ADR-007-profile-compatible-addon-dependencies.md，Status: Proposed，未采纳）。
+裁决前：§2 冲突行保持计划原文并标记 CONFLICT；不静默改写计划依赖。
+```
+
 ## 1. 审计实例事实（Evidence）
 
 - 代码库 `odoo-19/addons`：638 个 addon；`odoo/release.py:15` = 19.0 FINAL；无 enterprise。
@@ -22,11 +32,11 @@ stock_delivery delivery sales_team product contacts（可用，未装）mail bas
 |---|---|---|---|
 | factory_os_core | base/mail/web/contacts/product（L180-188） | 全部存在（contacts 在 addons/，未被审计库安装但可装） | 无阻塞 |
 | factory_os_orders | factory_os_core + sale（**ADR-006 Accepted：去 sale_stock**，原 L315-321 失效） | sale_stock 存在且已安装（引擎级库）；sale.order.line 的 route_ids/is_mto/_action_launch_stock_rule 实测存在（sale_stock/models/sale_order_line.py:385） | 无阻塞；orders 只含基础订单执行（Profile 0 真实安装面=仅 sale，Test G）；route/库存联动由 supply 扩展 sale.order、delivery 扩展 stock.picking 提供 |
-| factory_os_supply | core + orders + purchase + purchase_stock + stock + mrp（L514-523） | 全部存在；purchase_mrp 也已自动安装 | 无阻塞；mrp 依赖使 MO→组件采购可用（purchase_mrp） |
+| factory_os_supply | core + orders + purchase + purchase_stock + stock + mrp（L515-524） | 全部存在 | **CONFLICT（§6 / ADR-007 Proposed）**：`mrp` 直接依赖 + auto 桥（sale_mrp/mrp_account/purchase_mrp）使 Profile 1 强制装 MRP 引擎 → Profile 1 变 Profile 2 |
 | factory_os_production | core + orders + supply + mrp + stock（L671-679） | mrp 为 Community 模块，含 mrp.bom/production/workorder/workcenter（实测 EXIST） | 无阻塞 |
 | factory_os_quality | 无原生 quality 可依赖 → core（+按需 stock/purchase/mrp 触发器） | **quality.check/point/alert 全部缺失**（实测 False） | 走开发计划 §20「当前没有 Quality」路径：仅建 factory.quality.inspection / factory.quality.ncr 两薄模型；不允许复制 Odoo Quality |
-| factory_os_delivery | orders + production + quality + stock + delivery（L969-977） | delivery 与 stock_delivery 存在（未装）；delivery 缺失时以 stock 为最低依赖（L979） | 无阻塞；按需 delivery |
-| factory_os_dashboard | orders/supply/production/quality/delivery（内部，L1102-1110） | 内部依赖，不引原生业务模块 | 无阻塞 |
+| factory_os_delivery | orders + production + quality + stock + delivery（L972-980） | delivery 与 stock_delivery 存在（未装）；delivery 缺失时以 stock 为最低依赖（L979） | **CONFLICT（§6 / ADR-007 Proposed）**：依赖 production/quality → 基础发货即强制 MRP/QC 引擎面；原生 `delivery` 依赖与 ADR-006 §E（不绑 delivery addon）冲突 |
+| factory_os_dashboard | orders/supply/production/quality/delivery（内部，L1107-1115） | 内部依赖，不引原生业务模块 | **CONFLICT（§6 / ADR-007 Proposed）**：静态依赖全部内部 addon → 安装即强制最高引擎面；Profile 0 订单看板若需 dashboard 则该依赖不成立 |
 | factory_os_connector | 无原生 ERP 强依赖（中央平台，L1219-1237） | 复用 mail/bus/web 基础设施 | 无阻塞 |
 
 ## 3. Community 现实缺口（影响建模）
@@ -57,3 +67,27 @@ stock_delivery delivery sales_team product contacts（可用，未装）mail bas
 4. `factory_os_delivery`：最低依赖 `stock`（delivery picking 即发货基础）；**不依赖也不主动安装 Odoo `delivery` addon**（carrier/运费能力 optional，Post-MVP 再评估）。
 5. 安装由向导按 Technical Installation Profile 0–3（progressive-adoption）映射原生引擎与 factory addon：单调（进入后不卸载/不降级），升级只增；`purchasing` 仅在 `inventory` profile 内可选（v0.1 无 Purchase-only）。
 6. 若未来工厂启用 Enterprise quality addon，需新增映射版本（本 Phase 0 冻结 Community）。
+
+## 6. Dependency-Closure Matrix（2026-09-07 dependency-closure STOP）
+
+闭包法则（原生 manifest 源码级）：每行 = 按开发计划现依赖逐层解析 `depends` + 自动挂载 `auto_install` 桥（sale_stock/stock_account/purchase_stock/sale_mrp/mrp_account/purchase_mrp/sale_purchase）。判定不变量：**属于 Profile N 的 addon 安装不得强制带入只属于 Profile N+1 的原生引擎**。目标闭包见 ADR-007（Proposed）。
+
+| Factory addon | 直接 Factory 依赖 | 直接原生依赖 | 传递闭包后原生引擎面（含自动桥） | 强制最低 Technical Profile | 意外开启的能力 | 判定 |
+|---|---|---|---|---|---|---|
+| factory_os_core | — | base/product/mail/web/contacts | 无 stock/purchase/mrp | Profile 0 | — | PASS |
+| factory_os_orders | core | sale | sale→account；无 stock（无 sale_stock） | Profile 0 | — | PASS |
+| factory_os_supply | core+orders | purchase+purchase_stock+stock+**mrp** | {stock, purchase, mrp, account} + sale_stock/stock_account/purchase_stock/sale_mrp/mrp_account/purchase_mrp | **Profile 2**（应为 1） | **MRP 引擎 + MTO 自动 MO/RFQ 机制（Profile 2 专属）** | **CONFLICT** |
+| factory_os_production | core+orders+supply | mrp+stock | {stock, purchase, mrp, account} + 全部自动桥 | Profile 2 | —（自身属主） | PASS（以 supply 去 mrp 为前提） |
+| factory_os_quality | core（+按需 stock/purchase/mrp 触发器，§20） | 未显式 | 依赖表述含糊：若含 mrp 硬依赖 → 强制 Profile 2 | Profile 1 substrate（应为） | — | **PENDING**（需显式：最低 = core+orders+stock、无 mrp 硬依赖；process inspection 条件集成） |
+| factory_os_delivery | orders+**production**+**quality**+stock+**delivery** | stock+delivery | {stock, purchase, mrp, account}（经 production→supply→mrp）+ quality addon + carrier addon | **Profile 2+**（应为 Profile 1 substrate） | **MRP + Quality（基础发货被绑到高 profile）；Odoo delivery addon** | **CONFLICT** |
+| factory_os_dashboard | orders+supply+production+quality+delivery（全部内部） | —（无原生） | 经 factory deps → {stock, purchase, mrp, account} 全引擎面 | **最高 profile**（应为 Profile 0 起可用） | 全部引擎面（若 Profile 0 需订单看板） | **CONFLICT** |
+| factory_os_connector | 无 ERP 强依赖（中央平台） | mail/bus/web | 无引擎 | 兼容全部 | — | PASS |
+
+**CONFLICT 汇总**：
+1. `supply→mrp`：Profile 1 物理含 MRP 引擎与 MTO 机制（Profile 2 专属）——ADR-006 消灭的"引擎在、能力未开"在闭包面复现。
+2. `delivery→production/quality/native delivery`：基础发货强制 MRP/QC/carrier，违背 ADR-006 §E（delivery = Inventory 上业务能力）。
+3. `dashboard→全部内部 addon`：强制最高引擎面；Profile 0 订单看板可用性依赖不成立。
+4. `quality` 原生依赖未显式：若含 mrp 硬依赖则 Incoming/Final QC 也被绑到 MRP。
+5. `supply→purchase`（substrate 常驻）与 ADR-006 §A purchasing 单调分类的语义冲突 → purchasing_enabled 建议改 Workflow capability（ADR-007 §Purchasing 语义修订）。
+
+目标闭包（ADR-007 Proposed，裁决前不落地）：supply = core+orders+stock+purchase（无 mrp）；delivery = core+orders+stock（无 production/quality/delivery）；dashboard = core+orders + registry 守卫可选瓦片；quality = core+orders+stock（无 mrp，process inspection 条件集成）；production = core+orders+supply+mrp。8-addon 架构不变。
