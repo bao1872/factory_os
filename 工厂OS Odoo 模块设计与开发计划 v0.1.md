@@ -8,6 +8,17 @@
 
 ---
 
+## 0.1 开发基线补充（2026-09-07 锁定）
+
+开发必须同时遵循：
+
+- [`docs/factory_os/configuration-matrix.md`](docs/factory_os/configuration-matrix.md)：A/B 类有界配置、默认值、作用域、权限、依赖与审计；
+- [`docs/factory_os/system-invariants.md`](docs/factory_os/system-invariants.md)：C 类正确性、安全、库存、质量、隐私与审计不变量。
+
+两份文件不是参考材料，而是模型约束、设置页、ACL/record rules、服务层校验和自动化测试的验收依据。
+
+---
+
 # 1. 总体技术决策
 
 工厂OS不重新开发 ERP。
@@ -261,11 +272,14 @@ Factory OS Settings
 Factory Name
 Default Warehouse
 Default Manufacturing Route
-Lot Tracking Default
-QC Enabled
+Module Toggles with Dependencies
+Business-policy Thresholds
+Bounded Workflow Modes
 External Sync Enabled
 Dashboard Risk Thresholds
 ```
+
+禁止设置全局 `Lot Tracking Default`：追踪方式属于产品级字段（不追踪/批次/序列号）。禁止把租户隔离、库存真实性、安全底线、强制审计等系统不变量做成开关。设置项完整定义见配置矩阵。
 
 ---
 
@@ -1389,6 +1403,15 @@ mrp
 
 禁止未审计就创建新模型。
 
+Phase 0 还必须确认并冻结：
+
+```text
+docs/factory_os/configuration-matrix.md
+docs/factory_os/system-invariants.md
+```
+
+并输出每项不变量对应的模型约束、服务校验、ACL/record rule 与测试用例映射。未完成该映射，不进入 Phase 1。
+
 ---
 
 # 40. Phase 0 输出 Model Mapping
@@ -1435,6 +1458,10 @@ docs/factory_os/model-mapping.md
 | 产品扩展 | PASS |
 | Customer/Supplier 分类 | PASS |
 | 配置页 | PASS |
+| 初始化向导六步流程 | PASS |
+| 配置依赖与隐藏逻辑 | PASS |
+| 配置变更审计 | PASS |
+| 系统不变量绕过测试 | PASS |
 
 特别测试：
 

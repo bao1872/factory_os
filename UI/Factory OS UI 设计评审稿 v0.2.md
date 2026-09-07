@@ -151,7 +151,8 @@ Odoo 顶部 Navbar 展示 Factory OS 的主要应用入口；App Switcher 展示
 12. `Concepts/12-odoo-native-inspection.png`：来料、过程和成品检验统一列表；单据流程状态与 PASS/FAIL/HOLD 结果分离。
 13. `Concepts/13-odoo-native-mobile-warehouse.png`：仓库今日任务、扫码收货和生产领料三个移动端单动作工作面。
 14. `Concepts/14-odoo-native-reports-v2.png`：只覆盖交付、生产、质量、库存和供应商五类 MVP 报表，复用 Dashboard/Graph/Pivot/List。v2 已修正顶部应用名称和导航文案漂移；旧稿不再作为基准。
-15. `Concepts/15-odoo-native-settings.png`：回归 `res.config.settings`，只保留工厂级业务配置；数据库维护和服务器操作不进入普通设置页。
+15. `Concepts/15-odoo-native-settings.png`：历史设置探索稿，已被配置治理评审部分替代；其中全局批次追踪等表达不得实现。
+16. `Concepts/25-odoo-native-setup-and-settings-v2.png`：新的设置基准，覆盖首次六步初始化向导及工厂、订单、采购、库存、生产、质量、交付、通知、用户与角色、集成十个分组；C 类不变量只读呈现，不提供开关。
 
 ## 9. Odoo 实现边界
 
@@ -182,6 +183,12 @@ Odoo 顶部 Navbar 展示 Factory OS 的主要应用入口；App Switcher 展示
 - 所有异常统一包含对象、风险代码、通俗说明、影响、负责人、截止时间和下一步。
 - Chatter 承担协作、附件、活动与审计可见性，不重复开发“动态日志”组件。
 - 桌面使用 Odoo Search/List/Form/Kanban；移动端围绕扫码、数字、拍照和单一主动作。
+- “不确定就配置”只适用于业务策略；系统正确性、安全和数据真实性不可配置。
+- 批次/序列号追踪是产品级配置，不设置工厂级总开关。
+- 设置页只使用有界枚举与明确依赖；所有配置变更必须审计。
+- 首次安装使用六步向导生成推荐配置，日常修改仍进入 Odoo `res.config.settings`。
+
+配置字段与不可变约束分别以 `docs/factory_os/configuration-matrix.md` 和 `docs/factory_os/system-invariants.md` 为准。
 
 ## 11. 页面覆盖状态
 
