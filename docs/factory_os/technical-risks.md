@@ -3,30 +3,32 @@
 Date: 2026-09-07（Phase 0 r2）
 来源：全部来自本 Phase 实测（native-behavior-audit / addon-dependency-map / security-baseline / state-map 的证据行）。每条含证据、影响、建议与责任 Phase。风险等级：P0（必须 Phase 1 前决策/缓解）、P1（Phase 1-3 内处理）、P2（观察项）。
 
-## Gate Status（2026-09-07 STOP resolution）
+## Gate Status（2026-09-07 Accepted closure）
 
 ```
-Phase 0 evidence collection: mostly complete
-Phase 0 Gate: BLOCKED — Odoo Reality architecture decision required
-原因: capability/addon 架构未决（STOP A → R1）+ MTO 原生行为此前测试不完整（STOP B → 已由 Test E/F/H3 补测，见 R10）
-决策载体: ADR-006（Status: Proposed，未采纳）
+Phase 0 evidence collection: complete
+Phase 0 Gate: PASS — awaiting user authorization for Phase 1
+闭环节点：ADR-006 = Accepted（Option 1 + amendments）；R1 架构冲突已裁决；
+  R10 MTO 行为归 MRP Profile 受控能力；authority 文档一致；Test E–H 证据未变。
+历史：r2 PASS → user STOP（BLOCKED, a19840b）→ ADR-006 Proposed →
+  user Accept with amendments → 本 commit 收口为 PASS。
 ```
 
-R1 由"建议"升级为**未决架构冲突**；E–H 实测（native-behavior-audit §8）证明 Safe Minimal=不装引擎、MTO 激活即 SO 确认自动 MO/RFQ。Gate 在 ADR-006 裁决前维持 BLOCKED，不自动授权 Phase 1。
+R1 由"未决架构冲突"转为 **已裁决**（ADR-006 Accepted）；残留执行风险转 Phase 1（单调校验/探测、orders 去 sale_stock、profile 安装）。不自动授权 Phase 1。
 
 ## P0
 
-### R1 capability 分层 vs 原生引擎联动：架构冲突未决 → ADR-006（STOP A，升级为 ARCHITECTURAL）
+### R1 capability 分层 vs 原生引擎联动：已裁决（ADR-006 Accepted）→ 残留为 Phase 1 执行风险
 - 证据：测试 A/B——只要 stock 已装，SO/PO 确认对任何 consu 货物（含非 storable plain）都生成 picking/move（A3R S00009/S00010、B P00001/P00002）；G——Safe Minimal（仅 sale，54 模块）下引擎模型全部不存在、Goods SO 确认零物流对象；H2/H3——同库渐进装 stock/mrp 后旧单零回溯、新单即入引擎。反向结论：**"已装引擎但 flag 关"不存在"回到无库存事务"的状态**。
-- 影响：progressive-adoption.md「capability flags 不动态安装或卸载 Odoo addons」（L10）与 Safe Minimal/preset「无库存/MO/QC 事务」（L8/L92-99）在"引擎已装 + flag 关"组合下互斥；若某工厂先装 stock/mrp 而 inventory/mrp flag 关闭，原生仍产 picking/可自动 MO。
-- 处置（本 STOP resolution）：**不再由审计侧静默选型**。三选项（installed-addon profiles 单调升级 / 全装并接受隐藏原生事务 / 拦截抑制原生副作用）与各自后果分析已在 `docs/decisions/ADR-006-capability-engine-and-addon-installation.md` 展开（**Status: Proposed，未采纳**）；裁决前 configuration-schema / progressive-adoption / 开发计划一律不修改。
-- 责任：用户 Gate 裁决（ADR-006 Accept/Reject/Amend）+ Phase 1（按裁决实现安装 profile 与 manifest）。
+- 裁决（2026-09-07）：**ADR-006 Accepted** = Option 1（Installed-addon profiles + monotonic upgrades）+ 强制修订——引擎型 capability（inventory/formal MRP，及进入 profile 的 purchasing/quality）单调、禁止假关闭；保持 8-addon（orders 去 sale_stock）；v0.1 purchasing→inventory；Profile 0–3 冻结；delivery 为业务层能力（不绑 Odoo delivery addon）；Business Preset ≠ Technical Installation Profile。受影响权威已同步（progressive-adoption v1.1 / configuration-schema / configuration-dependency-graph / 开发计划 / addon-dependency-map）。
+- 残留执行风险（Phase 1）：profile→引擎安装映射与单调校验、"引擎在而 flag 关"一致性探测、orders manifest 去 sale_stock、supply 对 sale.order 的库存扩展、MTO 产品建模按 profile 校验（R10）。Phase 1 验收以 native-behavior-audit §8 E–H + harness 重跑为准。
+- 责任：Phase 1（按 ADR-006 实现）；Phase 0 风险本身关闭。
 
 ### R10 原生 MTO：SO 确认自动建 MO/RFQ，flag 无法抑制（STOP B 补测结论）
 - 证据：Test E（factory_phase0_mto）——激活 `stock.route_warehouse0_mto` + 产品 route=[Manufacture, MTO] + BoM，SO=S00002 确认即 **mo 0→1**（WH/MO/00001 confirmed, origin=S00002, qty=3.0），sale 行成品 move proc=make_to_order，`action_view_mrp_production()['res_id']==mo.id`；Test F——MTO+Buy+供应商 → SO 确认即 **po/rfq 0→1**（P00001 draft, origin=S00001）；H3 在同库渐进场景复现（mo 0→1）。配方对齐官方 sale_mrp 测试。
 - 影响：原 Test C（is_mto=False）的「任何场景都不自动建 MO」过宽结论撤回；**MTO 配置 + 引擎已装时，`mrp_production_enabled=false` 无法阻止原生自动 MO/RFQ**——强化 R1 与 ADR-006；低能力级库若误配 MTO route 会绕过"无库存/MO 事务"承诺。
-- 建议：产品建模/导入向导校验 MTO route 分配与当前安装 profile 一致（MTO 产品只允许存在于正式生产级库）；`factory_os_orders` 对带 MTO route 的 SO 行在低能力级库给出显式阻断或提示（Phase 1，待 ADR-006 裁决）。
-- 责任：用户 Gate 裁决 + Phase 1（产品建模向导 + orders 校验）。
+- 建议（ADR-006 Accepted 后）：MTO route 分配属 **MRP Profile 受控能力**（Profile 2，native-behavior-audit §0/§9）；产品建模/导入向导只在含 mrp 的 profile 库允许 MTO route，低能力级库阻止分配；orders 服务层对带 MTO 意图的 SO 行在低 profile 库校验（Phase 1 实现，验收 = Test E/H3 断言）。
+- 责任：Phase 1（产品建模向导 + orders 校验 + profile 单调探测）。
 
 ### R2 Community 无 quality addon → 质检与成品质检 Gate 全自建
 - 证据：addon 目录与 registry 均无 quality.check/point/alert（EXIST=False）；无 enterprise。
@@ -83,4 +85,5 @@ R1 由"建议"升级为**未决架构冲突**；E–H 实测（native-behavior-a
 
 - 平行库存/平行生产：已被 system-invariants #3 + ADR-002/003 排除，Phase 0 不重开（ADR-002 Supersedes）。
 - 离线事务：ADR-005 排除，本 Phase 未测试（不适用于 v0.1）。
-- MO 非 MTO 下"确认不自动生成"**不是缺陷**：原生语义即"补货驱动"，与 ADR-003 设计一致；而 MTO 下"确认即自动 MO/RFQ"是原生正式行为（E/F/H3），Factory OS 以安装 profile + MTO route 校验管理它（ADR-006 Proposed），不是缺陷也不是可抑制的副作用。
+- Purchase-only（无 inventory 的采购模式）：ADR-006 **Accepted** 显式裁决 v0.1 不支持（purchasing requires inventory）；Odoo 的 purchase-without-stock 能力仅记录为原生现实，非漏项（Deferred/Post-MVP）。
+- MO 非 MTO 下"确认不自动生成"**不是缺陷**：原生语义即"补货驱动"，与 ADR-003 设计一致；而 MTO 下"确认即自动 MO/RFQ"是原生正式行为（E/F/H3），属 MRP Profile 受控能力（R10/ADR-006），不是缺陷也不是可抑制的副作用。

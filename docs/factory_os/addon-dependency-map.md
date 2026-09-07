@@ -21,7 +21,7 @@ stock_delivery delivery sales_team product contacts（可用，未装）mail bas
 | Factory OS addon | 计划依赖（开发计划引用行） | 原生状态（实测） | 结论 |
 |---|---|---|---|
 | factory_os_core | base/mail/web/contacts/product（L180-188） | 全部存在（contacts 在 addons/，未被审计库安装但可装） | 无阻塞 |
-| factory_os_orders | factory_os_core + sale + sale_stock（L315-321） | sale_stock 存在且已安装；`sale.order.line.route_ids`/`is_mto`/`_action_launch_stock_rule` 实测存在（sale_stock/models/sale_order_line.py:385） | 无阻塞；route 行为见 native-behavior-audit 测试 C |
+| factory_os_orders | factory_os_core + sale（**ADR-006 Accepted：去 sale_stock**，原 L315-321 失效） | sale_stock 存在且已安装（引擎级库）；sale.order.line 的 route_ids/is_mto/_action_launch_stock_rule 实测存在（sale_stock/models/sale_order_line.py:385） | 无阻塞；orders 只含基础订单执行（Profile 0 真实安装面=仅 sale，Test G）；route/库存联动由 supply 扩展 sale.order、delivery 扩展 stock.picking 提供 |
 | factory_os_supply | core + orders + purchase + purchase_stock + stock + mrp（L514-523） | 全部存在；purchase_mrp 也已自动安装 | 无阻塞；mrp 依赖使 MO→组件采购可用（purchase_mrp） |
 | factory_os_production | core + orders + supply + mrp + stock（L671-679） | mrp 为 Community 模块，含 mrp.bom/production/workorder/workcenter（实测 EXIST） | 无阻塞 |
 | factory_os_quality | 无原生 quality 可依赖 → core（+按需 stock/purchase/mrp 触发器） | **quality.check/point/alert 全部缺失**（实测 False） | 走开发计划 §20「当前没有 Quality」路径：仅建 factory.quality.inspection / factory.quality.ncr 两薄模型；不允许复制 Odoo Quality |
@@ -47,11 +47,13 @@ stock_delivery delivery sales_team product contacts（可用，未装）mail bas
 - `purchase_stock`：PO 确认→ incoming picking/stock.move（测试 B）。
 - `purchase_mrp` / `sale_mrp`：产品带 Manufacture/Buy 路线时补货可生成 MO（测试 C）；仓库默认含 Manufacture、Buy 两条路线（实测 ALL_ROUTES）。
 
-**含义**：能力开关（configuration-schema `mrp_production_enabled` 等）只控制 Factory OS UI/流程/字段可见性，**不卸载**这些桥接模块；原生规则是否触发取决于 产品 type/is_storable/route_ids/仓库路线与补货引擎（详见 native-behavior-audit.md §5 capability flag reality map）。
+**含义（ADR-006 Accepted 更新）**：能力开关与原生引擎的关系 = **Technical Installation Profile**（单调）——启用引擎型能力（库存/正式 MRP/采购/质量）执行受控、可审计、单调的原生 addon profile 安装（含 auto_install 桥接）；v0.1 无正常 ON→OFF、无原生引擎卸载/降级；workflow/UI 子能力只控 Factory OS UI/流程/字段可见性。Safe Minimal（Profile 0）物理上不装这些引擎与桥接（Test G：模型不存在），因此不存在"已装引擎而 flag 关"的假关闭状态；引擎若绕过 Factory OS 被安装，Phase 1 一致性检查负责探测并阻止矛盾配置（详见 configuration-dependency-graph / configuration-schema）。
 
-## 5. manifest 设计约束（Phase 1 前生效）
+## 5. manifest 设计约束（ADR-006 Accepted 后生效）
 
-1. 最小依赖：manifest 按上表引用，不机械复制开发计划 §3 依赖图（L155）。
-2. `factory_os_quality` 不得在 manifest 声明不存在的 quality* 依赖；改为可选的 `quality_*` 探测注释或由安装向导判断（当前 Community 下永远走 thin 路径）。
-3. `factory_os_delivery`：`delivery` 可缺失时以 stock 兜底（L979）。
-4. 若未来工厂启用 Enterprise quality addon，需新增映射版本（本 Phase 0 冻结 Community）。
+1. **保持 8-addon 架构**：不新增任何第 9 个 Factory OS bridge addon（`factory_os_orders_stock` 之类被裁决否决）。
+2. `factory_os_orders` manifest = `factory_os_core + sale`（**不再依赖 `sale_stock`**）；库存/物料视角归 `factory_os_supply` 扩展 `sale.order`，发货/追溯视角归 `factory_os_delivery` 扩展 `stock.picking`。
+3. `factory_os_quality` 不得在 manifest 声明不存在的 quality* 依赖；始终走 Community thin 路径（factory.quality.inspection/ncr）。
+4. `factory_os_delivery`：最低依赖 `stock`（delivery picking 即发货基础）；**不依赖也不主动安装 Odoo `delivery` addon**（carrier/运费能力 optional，Post-MVP 再评估）。
+5. 安装由向导按 Technical Installation Profile 0–3（progressive-adoption）映射原生引擎与 factory addon：单调（进入后不卸载/不降级），升级只增；`purchasing` 仅在 `inventory` profile 内可选（v0.1 无 Purchase-only）。
+6. 若未来工厂启用 Enterprise quality addon，需新增映射版本（本 Phase 0 冻结 Community）。

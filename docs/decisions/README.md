@@ -36,7 +36,7 @@
 | [ADR-003](ADR-003-simple-execution-vs-formal-mrp.md) | 简单订单执行与正式 MRP 分离 | Accepted | `sale.order.factory_*` 表达简单执行；正式 MO/BOM 属 `factory_os_production`；两者不混同 |
 | [ADR-004](ADR-004-progressive-adoption.md) | 渐进采用：不伪造历史、不建平行模型 | Accepted | 高级能力只约束新动作；历史记录不重写、不伪造 |
 | [ADR-005](ADR-005-no-offline-transactions-v0.1.md) | v0.1 无离线业务事务 | Accepted | 网络失败仅保留当前页输入、显示失败、手动 Retry；无离线队列/自动重放 |
-| [ADR-006](ADR-006-capability-engine-and-addon-installation.md) | Capability 引擎 vs 原生 addon 安装 | **Proposed** | （待裁决）能力等级 ↔ 原生 addon 安装 profile 绑定、单调升级；引擎已装后 flag 关仅隐藏 UI 不抑制原生；由 Phase 0 STOP A/B 触发，未采纳 |
+| [ADR-006](ADR-006-capability-engine-and-addon-installation.md) | Capability 引擎 vs 原生 addon 安装 | **Accepted** | 能力等级 ↔ 原生 addon 安装 profile 绑定、单调升级（引擎型 capability 不允许 ON→OFF）；保持 8-addon（orders 去 sale_stock）；v0.1 purchasing→inventory；由 Phase 0 STOP A/B 裁决触发，2026-09-07 Accepted |
 
 ## 维护约定
 

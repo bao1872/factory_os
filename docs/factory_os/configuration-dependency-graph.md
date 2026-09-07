@@ -16,18 +16,31 @@
 ## Graph
 
 ```text
-mrp_production_enabled
-  requires ENABLE_REQUIRED: inventory_enabled, product/BOM capability
-  controls AUTO_DISABLE: mobile_operator_enabled, operations_enabled, reporting_mode
-  blocks disable when: active MO/workorder exists
+inventory_enabled                      <- engine-backed monotonic (ADR-006 Accepted)
+  requires ENABLE_REQUIRED: native Inventory profile (stock engine 安装)
+  monotonic: 进入后 ON->OFF 不支持 (BLOCK disable)；禁止"引擎在而 flag 关"的假关闭状态
 
-delivery_enabled
-  requires ENABLE_REQUIRED: inventory_enabled
+purchasing_enabled                     <- engine-backed monotonic (ADR-006 Accepted)
+  requires ENABLE_REQUIRED: inventory_enabled (v0.1 无 Purchase-only；Inventory ON + Purchasing OFF 允许)
+  monotonic: 进入后 ON->OFF 不支持 (BLOCK disable)
+  被 PR/来料检验引用；block parent disable when: open PR / open incoming inspection exists
+
+mrp_production_enabled                 <- engine-backed monotonic (ADR-006 Accepted)
+  requires ENABLE_REQUIRED: inventory_enabled, product/BOM capability, native MRP profile (mrp engine 安装)
+  monotonic: 进入后 ON->OFF 不支持 (BLOCK disable)
+  controls AUTO_DISABLE(workflow 子项): mobile_operator_enabled, operations_enabled, reporting_mode
+  blocks disable when: active MO/workorder exists
+  MTO 语义: MRP profile 下 MTO+Manufacture 产品 SO 确认自动建 MO (Test E/H3)，属受控能力，非 flag 可关
+
+delivery_enabled                       <- 业务层能力，可 ON<->OFF (ADR-006 Accepted)
+  requires ENABLE_REQUIRED: inventory_enabled (操作 stock.picking)
+  does NOT require/install Odoo delivery addon (carrier/运费 optional, Post-MVP)
   controls HIDE_KEEP: shipment_mode, packaging_fields, delivery_confirmation_mode
   blocks disable when: open outbound picking exists
 
-quality_enabled
+quality_enabled                        <- monotonic once Profile 3 installed (ADR-006 Accepted)
   requires ENABLE_REQUIRED: inventory_enabled
+  engine = factory_os_quality 薄模型 (Community 无原生 quality，不引入 Enterprise 依赖)
   controls: incoming_inspection_enabled, process_inspection_enabled,
             final_inspection_enabled, incoming_qc_gate, final_qc_gate,
             ncr_creation_policy, reject_inventory_disposition
@@ -75,9 +88,11 @@ connector_enabled
 
 | key | requires | visible_if | incompatible_with | parent disabled behavior |
 |---|---|---|---|---|
-| `mrp_production_enabled` | `inventory_enabled`, product/BOM capability | always | — | BLOCK with active MO/workorder; otherwise AUTO_DISABLE children |
-| `delivery_enabled` | `inventory_enabled` | always | — | BLOCK with open outbound; otherwise HIDE_KEEP children |
-| `quality_enabled` | `inventory_enabled` | always | — | BLOCK with open inspection/NCR/disposition; otherwise AUTO_DISABLE children |
+| `inventory_enabled` | native Inventory profile（stock） | always | engine-installed-but-flag-off | **monotonic BLOCK disable（engine-backed，ADR-006）**；无 ON→OFF |
+| `purchasing_enabled` | `inventory_enabled` | always | engine-installed-but-flag-off | **monotonic BLOCK disable（engine-backed）**；BLOCK while open PR / open incoming inspection |
+| `mrp_production_enabled` | `inventory_enabled`, product/BOM, native MRP profile | always | engine-installed-but-flag-off | **monotonic BLOCK disable（engine-backed）**；workflow 子项 AUTO_DISABLE；BLOCK while active MO/workorder |
+| `delivery_enabled` | `inventory_enabled`（stock.picking） | always | — | 业务层可 ON↔OFF：BLOCK with open outbound; otherwise HIDE_KEEP children；不安装 Odoo delivery addon |
+| `quality_enabled` | `inventory_enabled`（factory_os_quality 薄模型） | always | engine-installed-but-flag-off | **monotonic BLOCK disable once Profile 3 installed**；BLOCK while open inspection/NCR/disposition |
 | `incoming_inspection_enabled` | `quality_enabled`, `purchasing_enabled` | both parents | — | BLOCK with open inspection; otherwise AUTO_DISABLE |
 | `process_inspection_enabled` | `quality_enabled`, `mrp_production_enabled` | both parents | — | BLOCK with open inspection; otherwise AUTO_DISABLE |
 | `final_inspection_enabled` | `quality_enabled` | quality | — | BLOCK while final gate or open inspection exists |

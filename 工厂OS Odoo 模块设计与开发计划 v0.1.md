@@ -19,7 +19,7 @@
 
 这些文件不是参考材料，而是模型约束、设置页、ACL/record rules、服务层校验和自动化测试的验收依据。
 
-渐进采用基线见 [`docs/factory_os/progressive-adoption.md`](docs/factory_os/progressive-adoption.md)：裸安装只启用销售与订单级简单执行；正式 MRP、库存、质量等能力由向导或后续设置开启。capability flags 只控制 Factory OS 能力/UI/流程，不动态安装或卸载 Odoo addons。
+渐进采用基线见 [`docs/factory_os/progressive-adoption.md`](docs/factory_os/progressive-adoption.md)：裸安装只启用销售与订单级简单执行；正式 MRP、库存、质量等能力由向导或后续设置开启。**capability/addon 语义（ADR-006 Accepted，2026-09-07）**：业务 preset 与 capability 配置不假装抑制已安装的原生引擎；启用引擎型能力（库存/正式 MRP/采购/质量）执行受控、可审计、**单调**的原生 addon profile 安装（v0.1 无正常 ON→OFF、无原生引擎卸载/降级）；workflow/UI 子能力仍可自由开关；高级 profile 只影响新事务，历史不被回填（Test H）。
 
 `factory_os_orders` 必须支持不依赖 BOM、库存和 MO 的订单级简单执行状态、人工进度、预计完成日期、备注与附件。`factory_os_production` 才代表正式 MRP/MO 能力；Phase 0 验证 Odoo 19 Community 原生 MO/BOM 行为后再冻结映射。两者不得创建平行生产订单或虚假库存事务。
 
@@ -317,8 +317,9 @@ Dashboard aggregation
 ```python
 factory_os_core
 sale
-sale_stock
 ```
+
+> **ADR-006 Accepted（2026-09-07）**：`factory_os_orders` **不依赖 `sale_stock`**——Safe Minimal（Profile 0，仅装 sale）必须是真实可存在的安装面（Test G）。库存/物料视角（缺料、available、incoming、material readiness、stock-related order health）由 `factory_os_supply` 在对应原生引擎可用时扩展 `sale.order`；发货/追溯视角由 `factory_os_delivery` 扩展 `stock.picking`。保持 8-addon 架构，不新增桥接 addon。
 
 ## 核心模型
 
@@ -525,6 +526,8 @@ mrp
 ---
 
 # 9. Purchasing
+
+> **v0.1 约束（ADR-006 Accepted）**：`purchasing_enabled requires inventory_enabled`——Factory OS **无 Purchase-only 模式**（Deferred/Post-MVP）。采购是"物料需求→缺料→PO→收货→库存→生产"闭环的一环；Odoo 19 的 `purchase` 本身可不依赖 stock（depends=['account']）仅是原生现实，不作为 Factory OS v0.1 形态暴露。`factory_os_supply` 依赖含 `purchase_stock`/`stock`（本模块 dependencies 已满足）。
 
 直接扩展：
 
@@ -977,6 +980,8 @@ delivery
 ```
 
 如果当前环境没有 `delivery` addon，则以 `stock` 为最低依赖。
+
+> **ADR-006 Accepted（2026-09-07）**：Factory OS Delivery 本质操作 `stock.picking`（Inventory profile 一开原生 delivery picking 即存在）；`delivery_enabled` 是业务层能力（requires inventory、可 ON↔OFF），**不**与 Odoo `delivery` addon 一一绑定。Odoo `delivery`/carrier 仅在需要承运商/运费功能时安装（optional，Post-MVP）。
 
 ---
 
