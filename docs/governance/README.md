@@ -45,19 +45,35 @@
 
 ## 3. Agent / 开发者在动工前必须读什么
 
-**必读**（每次任务开始前，无论任务大小）：
+读取量按变更级别分层（与 [变更控制](change-control.md) 的 STANDARD / GOVERNED / ARCHITECTURAL 对应）。**不要求任何任务都通读全部治理文档**——修一个按钮间距或 XML typo 不应付出通读整套治理的代价；但级别越高，读取要求越完整。
 
-1. [治理 README（本文件）](README.md)
-2. [治理模型](governance-model.md)（治理域、权威层级、Phase Gates）
-3. [Agent 宪法](agent-constitution.md)（禁止静默重释、禁止虚假完成等）
-4. [硬停止条件](stop-conditions.md)
-5. [变更控制](change-control.md)（变更分级）
+### STANDARD 任务
 
-**按需读取**：
+必须读：
 
-- 将修改的受治理区域所对应的权威文档（见上表）；
-- 相关的已接受 ADR（见 [`docs/decisions/`](../decisions/README.md)）；
-- 当前 Phase 的审计 / 映射文档。
+- 本文件（Governance README）；
+- 当前修改区域对应的 relevant authority / source。
+
+按需读：Agent Constitution / Stop Conditions / Change Control（仅在遇到相关条款时查阅）。
+
+### GOVERNED 任务
+
+必须读：
+
+- 本文件；
+- [Agent 宪法](agent-constitution.md)；
+- [变更控制](change-control.md)；
+- 当前修改区域的 relevant authority；
+- [硬停止条件](stop-conditions.md) 相关章节；
+- 相关已接受 ADR。
+
+### ARCHITECTURAL / Phase Gate 任务
+
+必须读**完整 governance pack**：
+
+- 本文件 + [治理模型](governance-model.md) + [Agent 宪法](agent-constitution.md) + [硬停止条件](stop-conditions.md) + [变更控制](change-control.md)；
+- 相关已接受 ADR；
+- 相关产品 / 架构权威。
 
 **推荐阅读顺序**（仅为理解顺序，不是冲突解决顺序）：
 
@@ -121,4 +137,12 @@ STOP 不是失败，是治理的正常输出。停止后按 [硬停止格式](st
 
 ## 8. 治理文档本身如何变更
 
-治理文档的变更属于 **ARCHITECTURAL** 类，必须走 [变更控制](change-control.md#architectural) 流程：STOP → ADR 提议 → 明确授权 → 更新权威 → 实施 → 回归证据。治理文档本身不得随意堆砌，任何新增治理文档都必须能明确减少歧义。
+治理文档（本目录与 `docs/decisions/`）自身的变更**按语义影响分类，不按文件路径分类**，详见 [变更控制 §4](change-control.md#4-治理文档自身的变更governance-document-change)：
+
+- **STANDARD**：typo、排版、broken link、非语义措辞澄清、审计证据/结果刷新、引用 SHA/路径更新——直接修改，无需 ADR；
+- **GOVERNED**：Agent 操作纪律、完成证据要求、报告格式、执行流程、非架构性开发控制——识别权威 → 更新文档 → 一致性检查（用户已明确要求该行为变更即视为已授权），无需 ADR。示例：Remote Delivery Verification（Agent Constitution §7）；
+- **ARCHITECTURAL**：改变权威层级、不变量权威、STOP 权力、变更分级语义、ADR 流程、tenant/数据真相架构治理、范围升级权、Phase 授权模型——必须 STOP → Proposed ADR → 明确授权 → 更新权威 → 验证。
+
+**Audit staleness**：STANDARD 治理修复可只做 targeted check；GOVERNED / ARCHITECTURAL 治理语义修改会使 Governance Gate 置为 **STALE**，必须重新执行 [Governance Audit](governance-audit.md) 后才能重新声明 COMPLETE。
+
+治理文档本身不得随意堆砌，任何新增治理文档都必须能明确减少歧义。

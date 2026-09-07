@@ -1,40 +1,58 @@
 # Factory OS Governance Consistency Audit
 
-Date: 2026-09-07
-Scope: governance documentation only; authorization is Governance documentation only. No business code was added, no product semantics changed.
+Date: 2026-09-07（v1.0.1 re-audit）
+Scope: governance documentation only; authorization is Governance documentation only. No business code was added, no product semantics changed, no new product/architecture decision self-declared.
 
-## Delta
+## Audit type & staleness trigger
 
-- Added `docs/governance/`：`README.md`（唯一治理入口）、`governance-model.md`（8 治理域、权威层级、Phase Gates）、`agent-constitution.md`（6 条 Agent 规则）、`stop-conditions.md`（硬停止 + 升级路径）、`change-control.md`（STANDARD/GOVERNED/ARCHITECTURAL + 文档更新规则）。
-- Added `docs/decisions/`：`README.md`、`ADR-TEMPLATE.md`、ADR-001…ADR-005（全部由既有已批准决策归纳，无新架构发明）。
-- Modified root `README.md`：保留产品简介；"Authority" 段改为 "Start here → docs/governance/README.md"；明确阅读顺序 ≠ 冲突解决层级；新增 Governance 与 Architecture Decisions 链接。
+v1.0.1 包含 GOVERNED 级治理语义修改（治理文档变更分级语义调整、Audit staleness rule 新增、Agent Constitution 计数修正、ADR-002 Supersedes 澄清），按 [change-control.md §4.4](change-control.md#44-audit-staleness-rule审计过期规则)，v1.0.0 审计结果自动失效，**Governance Gate 置为 STALE**。本文件即 STALE 状态下重新执行的完整 consistency audit。
 
-## Consistency results
+### Gate 状态机
+
+```text
+COMPLETE →（GOVERNED / ARCHITECTURAL 治理语义修改）→ STALE →（本 full re-audit）→ COMPLETE
+COMPLETE →（STANDARD 治理修复：typo / link-only）→ targeted check，Gate 不失效
+```
+
+禁止出现"审计全 PASS 但被审权威随后已变化"的状态。
+
+## Delta（v1.0.1 修复）
+
+- `change-control.md` v1.0 → v1.0.1：§3 ARCHITECTURAL 示例移除"治理文档本身的变更"；新增 §4「治理文档自身的变更」——按语义影响分级（4.1 STANDARD / 4.2 GOVERNED / 4.3 ARCHITECTURAL governance-document change）+ 4.4 Audit staleness rule；原 §4-6 顺延为 §5-7，内部引用同步修正。
+- `agent-constitution.md` v1.0 → v1.0.1：§7 Remote Delivery Verification（63ad14a 加入）确认归类 **GOVERNED**（见 [change-control §4.2](change-control.md#42-governed-governance-document-change)）；规则计数 6 → 7。
+- `governance/README.md`：§3 读取要求由"每次任务必读 5 份"改为按 STANDARD / GOVERNED / ARCHITECTURAL 分层；§8「治理文档本身如何变更」改为按语义分类并附 staleness 简述。
+- `docs/decisions/ADR-002…`：Supersedes 文案澄清——不撤销技术结论；ADR-002 **约束 PRD §35 的解释**（平行库存不得实现），具体 model mapping（reuse / extend / thin）在 Phase 0 冻结；`factory.customer` / `factory.sales_order` / `factory.production_order` 等保留给 Phase 0 逐项验证。
+- `.gitignore`：新增 `.workbuddy/`（IDE 本地 workspace memory，确认仅含本地日志、不含 authority/source/test fixtures/required configuration）。
+- 本文件：v1.0.0 PASS → STALE → v1.0.1 re-audit。
+
+## Consistency results（v1.0.1，14 项）
 
 | # | Check | Result | Evidence |
 |---|---|---|---|
-| 1 | 无互相矛盾的权威层级 | PASS | 单一权威层级定义于 `governance-model.md` §1（System Invariants → ADR → PRD → Dev Plan → Configuration → UI → Implementation）；根 README 与 governance README 均引用同一层级，无第二套顺序。 |
-| 2 | Reading order 与 precedence 被明确区分为不同概念 | PASS | governance/README.md §3 与根 README 均写明"列表是推荐阅读顺序，不是冲突解决层级"；冲突裁决只引用 governance-model §1。原 README 将两者混合的表述已删除。 |
-| 3 | 治理文档与 PRD 无重复 | PASS | governance 文档以"引用 + 编号"指向 PRD/开发计划/schema，不复制其正文；唯一例外是五个产品问题（本任务 §5 明确要求锁定为 scope filter），已注明引用 PRD §2.2。 |
-| 4 | 无第二套 A/B/C 变更分类 | PASS | `change-control.md` 使用 STANDARD/GOVERNED/ARCHITECTURAL；显式声明 A/B/C 仅保留给配置治理的配置项性质，两者分工写明。全文 grep 无 A/B/C 变更分级。 |
-| 5 | 每个硬 STOP 有 owner / 升级路径 | PASS | `stop-conditions.md` 六个类别逐条给出 Owner 与升级路径；"授权恢复"节规定 STOP 只能由人类解除。 |
-| 6 | ADR 与既有已批准决策一致 | PASS | ADR-001←开发计划 §1/PRD §3.7；ADR-002←不变量 #3/开发计划 §10-12；ADR-003←不变量 #2/#14/schema 基础执行段；ADR-004←progressive-adoption/不变量 #14；ADR-005←不变量 #13/UI 24-v2。均引用既有权威，无新架构决策。 |
-| 7 | System Invariants 仍强于实现文档 | PASS | 未修改 `system-invariants.md`；层级置顶为最高权威；`governance-model.md` 明确"测试是证据不是权威，通过测试不能使违反不变量的行为合法化"。 |
-| 8 | Configuration Governance 保持完整 | PASS | 未修改 configuration-matrix/schema/dependency-graph 及 configuration-governance-audit；change-control GOVERNED 类要求配置变更先更新权威；C 类无配置入口重申于 governance-model 域 5。 |
-| 9 | Progressive Adoption 保持完整 | PASS | 未修改 progressive-adoption.md 及其 audit；ADR-003/004 引用并固化其语义。 |
-| 10 | 22-surface MVP scope 不变 | PASS | 未修改 UI 覆盖矩阵；governance-model 域 2 重申 70/70 仅设计覆盖、开发以 22 工作面为准。 |
-| 11 | Phase 0 仍是唯一授权实施阶段 | PASS | governance-model §3 定义 Phase 0–8/Pilot Gates；明示"当前仅 Phase 0 获得实施授权"；governance/README §5 同步声明。 |
-| 12 | 无业务代码新增 | PASS | `git status` 仅含 docs/governance/、docs/decisions/ 新增与 README.md 修改；变更文件全为 .md。 |
-| 13 | 所有链接可解析 | PASS | 脚本校验 65 个相对链接全部指向存在的文件。 |
-| 14 | `git diff --check` 通过 | PASS | 无空白错误（含 audit 文件）。 |
+| 1 | Governance-document changes 按语义影响分类，而非按文件路径 | PASS | `change-control.md` §4 建立三类（STANDARD/GOVERNED/ARCHITECTURAL governance-document change）；§3 不再含"治理文档本身一律 ARCHITECTURAL"；grep 无残留旧规则。 |
+| 2 | Remote Delivery Verification 正确归类为 GOVERNED | PASS | `change-control.md` §4.2 明示其归类与理由（操作纪律/完成证据要求，不触碰层级/STOP/分级/ADR/Phase 语义）；`agent-constitution.md` 标题注释与 `README.md` §8 同步引用。 |
+| 3 | Agent Constitution 活动规则数 = 7（所有位置一致） | PASS | `agent-constitution.md` 正文"七条强制规则，无例外"，§1–§7 齐全；grep `六条/6 条强制/6 条 Agent` 于 docs/ 零命中。 |
+| 4 | ADR-002 与 Phase 0 model-mapping 边界一致 | PASS | ADR-002 Supersedes 澄清为"约束 PRD §35 解释 + Phase 0 冻结具体 mapping"；与 governance-model Phase 0 Gate 的 Required evidence（`model-mapping.md`）一致。 |
+| 5 | 未重新开放平行库存选项 | PASS | system-invariants #3 未修改；ADR-002 Decision 未变；ADR-002 澄清行明示"Phase 0 不重新开放该已被排除的架构选择"。 |
+| 6 | Audit staleness rule 存在 | PASS | `change-control.md` §4.4 定义 STANDARD targeted check / GOVERNED+ARCHITECTURAL 置 STALE / 状态机；`README.md` §8 简述；本文件 Gate 状态机节落地。 |
+| 7 | 读取负担按变更级别分层 | PASS | `governance/README.md` §3 分 STANDARD（README + relevant authority）/ GOVERNED（+Constitution/Change Control/STOP 相关节/ADR）/ ARCHITECTURAL（完整 pack）；无"每次任务必读全部"残留。 |
+| 8 | `.workbuddy/` 处理明确，仓库状态不再被污染 | PASS | `.gitignore` 新增 `.workbuddy/`；目录内容核实仅为 `memory/2026-09-07.md`（IDE 本地日志）；`git status --short` 已不再列出 `.workbuddy/`。 |
+| 9 | System Invariants 仍为最高权威 | PASS | 未修改 `system-invariants.md`；governance-model §1 层级未变；change-control §5 仍要求语义改变先更新对应权威。 |
+| 10 | 22 MVP 工作面不变 | PASS | 未触碰 UI 覆盖矩阵与 PRD；governance-model 域 2 未改。 |
+| 11 | Phase 0 仍是唯一下一授权阶段 | PASS | governance-model §3 与 README §5 未改；本任务未引入任何新 Phase 授权。 |
+| 12 | 无业务代码修改 | PASS | `git status` 变更仅 5 文件：`.gitignore`、ADR-002、governance README、agent-constitution、change-control，全为治理文档/repo hygiene；audit 自身待本 commit 加入。 |
+| 13 | 所有链接可解析 | PASS | 脚本校验 71 个相对链接全部指向存在的文件。 |
+| 14 | `git diff --check` 通过 | PASS | 无空白错误（audit 文件写入后于 commit 前复检）。 |
 
-## Reported contradictions（预检查报告，仅治理级在本任务解决）
+## Reported contradictions（resolution 更新）
 
-1. **治理级（已解决）**：原根 README 把阅读顺序表述为权威层级，且 `system-invariants` 被排在配置文档之后。本任务将两者分离：阅读顺序保留于 README，权威层级唯一化于 governance-model.md，不变量置顶。
-2. **产品-技术映射级（仅报告，未解决，留给 Phase 0）**：PRD §35 建议模型名（`factory.customer`、`factory.sales_order`、`factory.inventory` 等）与 PRD §36 / 开发计划 §4、§51"扩展 Odoo 原生模型、禁止平行模型"冲突。PRD §35 自带免责条款（"如优先复用 Odoo 原生模型…"），治理上以 ADR-001/002/003 + 开发计划为准；最终裁决由 Phase 0 `model-mapping.md` 完成并需用户确认。本次未修改任何产品文档。
+1. **治理级（v1.0.0 已解决）**：原根 README 把阅读顺序表述为权威层级。已分离：reading order（governance README §3）与 precedence（governance-model §1）为不同概念，不变量置顶。本次复核未回归。
+2. **产品-技术映射级（本次裁决边界收紧，ADR-002 澄清）**：PRD §35 早期模型建议名（`factory.customer` / `factory.sales_order` / `factory.production_order` / `factory.inventory` 等）与 PRD §36 / 开发计划"扩展原生模型"的关系，此前表述为"留 Phase 0 裁决"。现澄清为：**凡涉及平行库存事实源的部分（`factory.inventory` / `factory.stock_move` / `factory.lot`）已被 system-invariants #3 + Accepted ADR-002 排除，不再由 Phase 0 重新裁决**；Phase 0 `model-mapping.md` 的任务是对每个 PRD 业务对象确认 reuse native / extend native / thin custom 的具体映射，不重开已被不变量禁止的架构选择。PRD §35/§36 产品文档本身未修改（超出本次授权）。
 
 ## Gate decision
 
-**Governance Gate: COMPLETE — all checks PASS.**
+**Governance Gate: COMPLETE（v1.0.1 re-audit 全 PASS）。**
 
-本决策授权 Phase 0（Odoo Reality Audit）作为唯一实施阶段。不授权任何业务实现；不改变 22-surface MVP scope；不改变配置/渐进采用/UI 既有权威。
+- v1.0.0 COMPLETE →（GOVERNED 语义修改）→ STALE →（本 full re-audit）→ **COMPLETE**。
+- 授权维持 Phase 0（Odoo Reality Audit）为唯一实施阶段。不授权任何业务实现；不改变 22-surface MVP scope；不改变配置/渐进采用/UI 既有权威。
+- 后续治理建设停止：除非发生 GOVERNED / ARCHITECTURAL 变化，不再继续"优化治理"；进入 Phase 0 用真实 Odoo 19 Community 验证。

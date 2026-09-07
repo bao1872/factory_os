@@ -33,3 +33,6 @@ odoo.conf
 .idea/
 .vscode/
 
+# IDE local workspace memory/state (not shared project authority or code)
+.workbuddy/
+

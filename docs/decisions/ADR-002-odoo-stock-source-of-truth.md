@@ -44,5 +44,6 @@ PRD 早期模型清单（§35）曾出现 `factory.inventory`、`factory.stock_m
 
 ## Supersedes / Superseded By
 
-- Supersedes：PRD §35 中 `factory.inventory` / `factory.stock_move` / `factory.lot` 等"第一阶段建议模型"表述（以本 ADR + 开发计划为准）。
+- 澄清（2026-09-07）：本 ADR **约束 PRD §35 的解释**——`factory.inventory` / `factory.stock_move` / `factory.lot` 等"第一阶段建议模型"不得被实现为可独立写数量的平行库存事实源（与 system-invariants #3、开发计划 §10-12 一致）。PRD §35 其余非库存业务对象（`factory.customer` / `factory.sales_order` / `factory.production_order` 等早期建议名）保留给 Phase 0 `model-mapping.md` 逐项确认（reuse native / extend native / thin custom），**Phase 0 不重新开放"是否允许平行库存事实源"这一已被排除的架构选择**。
+- Supersedes：PRD §35 中与库存单一事实源冲突的平行库存表述（以上文约束解释为准，具体 model mapping 在 Phase 0 冻结）。
 - Superseded By：None。

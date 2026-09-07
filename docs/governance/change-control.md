@@ -1,4 +1,6 @@
-# Factory OS Change Control v1.0
+# Factory OS Change Control v1.0.1
+
+v1.0.1（2026-09-07）：治理文档自身变更由"一律 ARCHITECTURAL"改为按语义影响分级（新增 §4），并增加 Audit staleness rule。
 
 状态：**Development / Agent Authority**。本文定义所有代码与文档变更的分级与流程。
 
@@ -62,7 +64,7 @@ identify/update authority      ← 先更新对应权威文档（configuration-m
 → consistency check
 ```
 
-**要求**：Agent 可在授权 Phase 内执行，但**必须先更新权威再写代码**；权威更新本身需符合 [文档更新规则](#4-文档更新规则)。典型入口：修改 configuration-schema 的某行 → 实现 → 测试 → 与 dependency-graph 一致性检查。
+**要求**：Agent 可在授权 Phase 内执行，但**必须先更新权威再写代码**；权威更新本身需符合 [文档更新规则](#5-文档更新规则)。典型入口：修改 configuration-schema 的某行 → 实现 → 测试 → 与 dependency-graph 一致性检查。
 
 ## 3. ARCHITECTURAL（架构变更）
 
@@ -78,8 +80,9 @@ identify/update authority      ← 先更新对应权威文档（configuration-m
 - 新工作流引擎；
 - 租户架构变更（one-codebase / one-db-per-factory）；
 - MVP 范围扩张（新 P0/P1）；
-- 破坏性外部契约变更；
-- 治理文档本身的变更。
+- 破坏性外部契约变更。
+
+**治理文档自身的变更不按"文件路径是否属于 docs/governance"一刀切归类，改按语义影响分级，见 [§4](#4-治理文档自身的变更governance-document-change)。**
 
 **流程**（强制性，顺序不可跳过）：
 
@@ -94,9 +97,78 @@ STOP                        ← 触发 stop-conditions，先停
 
 **要求**：无用户明确授权，Agent 不得进入 implementation 阶段。
 
-## 4. 文档更新规则
+## 4. 治理文档自身的变更（Governance-document Change）
 
-| 发生什么 | 更新哪份文档 |
+治理文档（`docs/governance/`、`docs/decisions/` 及根 README 的治理链接段）的变更**按语义影响分类，不按文件路径分类**。治理文档内的改动不是自动 ARCHITECTURAL——多数是 STANDARD 或 GOVERNED；反过来，真正改变治理语义的改动即使只改一行也是 ARCHITECTURAL。
+
+### 4.1 STANDARD governance-document change
+
+只包括：
+
+- typo / 错别字；
+- formatting（排版）；
+- broken link 修复；
+- 不改变语义的措辞澄清（wording clarification）；
+- audit 证据 / 结果刷新（按 [§4.4](#44-audit-staleness-rule审计过期规则) 的 targeted check 或 full re-audit 结果落盘至 [Governance Audit](governance-audit.md)）；
+- 引用 SHA / 路径更新。
+
+**无需 ADR**，Agent 可直接修改、验证并提交。
+
+### 4.2 GOVERNED governance-document change
+
+包括：
+
+- Agent 操作纪律（operational discipline）；
+- 完成证据要求（completion evidence requirements）；
+- 报告格式（report format）；
+- 执行流程（execution procedure）；
+- 非架构性的开发控制行为。
+
+要求：
+
+```text
+explicit authority identification   ← 指出被修改的治理文档与条款
+→ document update
+→ consistency check
+→ user authorization（若用户已就该行为变更明确发出指令，本步即已满足）
+```
+
+**不需要 ADR。**
+
+典型示例：**Remote Delivery Verification**（Agent Constitution §7，2026-09-07 加入）——它改变的是 Agent 操作纪律与完成证据要求，不触碰权威层级、STOP 权力、变更分级语义、ADR 流程或 Phase 授权模型，因此归类为 GOVERNED，而非 ARCHITECTURAL。
+
+### 4.3 ARCHITECTURAL governance change
+
+仅包括真正改变以下任一语义的治理修改：
+
+- authority precedence（权威层级顺序）；
+- System Invariant authority（不变量权威边界）；
+- STOP authority / 谁能解除 STOP；
+- change-class semantics（本文件的分级语义本身）；
+- ADR authority / process；
+- tenant / data-truth architecture governance；
+- scope escalation rights（谁有权扩大范围）；
+- Phase authorization model（阶段授权模型）。
+
+必须：
+
+```text
+STOP → Proposed ADR → explicit user approval → authority update → verification
+```
+
+### 4.4 Audit staleness rule（审计过期规则）
+
+治理文档的语义性修改会使既有的 Governance Audit 过期：
+
+- **STANDARD**（typo / link-only）治理修复：可只做 targeted check，**不**使整个 Governance Gate 失效；
+- **GOVERNED / ARCHITECTURAL** 治理语义修改：既有审计结果自动失效，**Governance Gate 置为 STALE**，必须重新执行完整 [Governance Audit](governance-audit.md) 后才能重新声明 `Governance Gate: COMPLETE`；
+- Gate 状态机（见 governance-audit）：`COMPLETE →（治理语义修改）→ STALE →（full re-audit）→ COMPLETE`。
+
+禁止出现"审计全 PASS，但被审权威随后已变化却未重新审计"的状态。
+
+## 5. 文档更新规则
+
+本表管辖**产品 / 业务 / 实现权威**（PRD、ADR、Invariants、configuration-*、progressive-adoption、UI 权威）在何种语义变化时更新。**治理文档自身的变更（governance/ 与 decisions/）按 [§4](#4-治理文档自身的变更governance-document-change) 分类**，不落入本表。
 |---|---|
 | 产品意义或产品范围改变 | PRD |
 | 架构决策改变 | ADR（新 ADR 或修订） |
@@ -125,7 +197,7 @@ STOP                        ← 触发 stop-conditions，先停
 | GOVERNED | ✓ | automated tests | 需要（先行） | Agent 在授权 Phase 内自主，但须一致性检查 |
 | ARCHITECTURAL | ✓ | regression evidence | 需要 | 用户明确授权 |
 
-## 6. 变更记录
+## 7. 变更记录
 
 - GOVERNED 与 ARCHITECTURAL 变更应在 commit message 中注明涉及的权威文档与 ADR 编号；
 - 涉及配置的变更自动落入 `factory.config.audit`（运行时审计），本文件管辖的是文档与实现变更纪律；

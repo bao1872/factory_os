@@ -1,8 +1,10 @@
-# Factory OS Agent Constitution v1.0
+# Factory OS Agent Constitution v1.0.1
 
 状态：**Development / Agent Authority**。本文件管辖人类开发者、IDE、Codex 与 Agent 在本仓库中的行为。违反任何一条即触发 [stop-conditions.md](stop-conditions.md) 的对应 STOP，停止修改并上报，直至授权变更。
 
-六条强制规则，无例外。
+v1.0.1（2026-09-07）：新增 §7 Remote Delivery Verification（GOVERNED 类治理变更，见 [change-control.md](change-control.md#42-governed-governance-document-change)），规则计数 6 → 7。
+
+七条强制规则，无例外。
 
 ---
 
