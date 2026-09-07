@@ -13,6 +13,8 @@
 开发必须同时遵循：
 
 - [`docs/factory_os/configuration-matrix.md`](docs/factory_os/configuration-matrix.md)：A/B 类有界配置、默认值、作用域、权限、依赖与审计；
+- [`docs/factory_os/configuration-schema.md`](docs/factory_os/configuration-schema.md)：技术字段名、模型、类型、selection、约束、审计和消费服务；
+- [`docs/factory_os/configuration-dependency-graph.md`](docs/factory_os/configuration-dependency-graph.md)：requires、visible_if、冲突和依赖关闭行为；
 - [`docs/factory_os/system-invariants.md`](docs/factory_os/system-invariants.md)：C 类正确性、安全、库存、质量、隐私与审计不变量。
 
 两份文件不是参考材料，而是模型约束、设置页、ACL/record rules、服务层校验和自动化测试的验收依据。
@@ -1407,6 +1409,8 @@ Phase 0 还必须确认并冻结：
 
 ```text
 docs/factory_os/configuration-matrix.md
+docs/factory_os/configuration-schema.md
+docs/factory_os/configuration-dependency-graph.md
 docs/factory_os/system-invariants.md
 ```
 

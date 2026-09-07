@@ -13,6 +13,8 @@
 
 说明：原始 12 张探索稿不计入“已有独立 UI”；当前只统计 `UI/Concepts` 中被确认或仍有效的 Odoo 原生设计稿。
 
+**重要：70/70 只表示 Design Coverage，不等于 v0.1 Development Scope。** 开发以本文“开发范围矩阵”和“22 个 MVP 工作面”清单为准。
+
 ## 桌面页面清单
 
 | # | 领域 | 页面 | Odoo 载体 | 状态 | 对应设计/缺口 |
@@ -62,7 +64,7 @@
 | 43 | 报表 | 质量分析 | Dashboard/Pivot | 缺失 | 合格率、不良率、NCR |
 | 44 | 报表 | 库存分析 | Dashboard/Pivot | 缺失 | 低库存、呆滞、估算价值 |
 | 45 | 报表 | 供应商分析 | Dashboard/Pivot | 缺失 | 准时率、周期、来料不良 |
-| 46 | 设置 | 工厂OS设置 | Settings | 待替换 | 15 为历史稿；以 25 为新基准 |
+| 46 | 设置 | 工厂OS设置 | Settings | 已完成 | 25 为活动基准；15 为历史稿 |
 | 47 | 设置 | 用户与角色 | List/Form | 缺失 | 用户、角色、访问范围 |
 | 47A | 设置 | 首次初始化向导 | Transient Model Wizard | 已完成 | 25；六步推荐配置 |
 
@@ -108,9 +110,92 @@
 6. Connector：共享订单、同步日志、合作客户、数据权限、配置。
 7. 移动端补页：异常、调拨、盘点、调整、待检、NCR、扫码错误态。
 
+## 开发范围矩阵（Authority）
+
+定义：`MVP-P0` 是首个端到端可运行闭环；`MVP-P1` 是 v0.1 验收前增强；`Post-MVP` 不进入 v0.1；`Native reuse only` 表示使用 Odoo 原生页面并仅做必要字段、域和权限扩展；`Deferred` 表示已有设计但不授权开发。
+
+| # | Page | UI Coverage | Dev Priority | MVP Scope | Implementation Mode |
+|---:|---|---|---|---|---|
+| 1 | 今日工作台 | Done | MVP-P1 | Core surface 01 | Owl thin client action |
+| 2 | 全部异常 | Designed | Post-MVP | Deferred | Native List/Form later |
+| 3 | 客户列表 | Designed | MVP-P0 | Core surface 02 | Native reuse only |
+| 4 | 客户表单 | Designed | MVP-P0 | Core surface 02 | Native reuse only + smart buttons |
+| 5 | 报价单列表 | Designed | MVP-P1 | Core surface 03 | Native reuse only |
+| 6 | 报价单表单 | Designed | MVP-P1 | Core surface 03 | Native reuse only |
+| 7 | 销售订单列表 | Designed | MVP-P0 | Core surface 03 | Native + extend |
+| 8 | 销售订单表单/履约总览 | Done | MVP-P0 | Core surface 03 | Native + extend |
+| 9 | 产品列表 | Done | MVP-P0 | Core surface 04 | Native reuse only |
+| 10 | 产品表单 | Done | MVP-P0 | Core surface 04 | Native + extend |
+| 11 | BOM 列表 | Designed | MVP-P0 | Core surface 05 | Native reuse only |
+| 12 | BOM 表单/版本 | Done | MVP-P0 | Core surface 05 | Native + thin version fields |
+| 13 | 产品版本历史 | Designed | Post-MVP | Deferred | Native List/Form later |
+| 14 | 供应商列表 | Designed | MVP-P0 | Core surface 06 | Native reuse only |
+| 15 | 供应商表单 | Designed | MVP-P0 | Core surface 06 | Native reuse only + smart buttons |
+| 16 | 缺料处置 | Done | MVP-P0 | Core surface 07 | Native List + computed risk |
+| 17 | 采购申请列表 | Designed | Post-MVP | Deferred | Thin custom after MVP |
+| 18 | 采购申请表单 | Designed | Post-MVP | Deferred | Thin custom after MVP |
+| 19 | 采购订单列表 | Done | MVP-P0 | Core surface 08 | Native + extend |
+| 20 | 采购订单表单 | Done | MVP-P0 | Core surface 08 | Native + extend |
+| 21 | 库存总览 | Done | MVP-P0 | Core surface 09 | Native List/Search Panel |
+| 22 | 收货单 | Designed | MVP-P0 | Core surface 10 | Native + QC gate extension |
+| 23 | 领料/出库单 | Designed | MVP-P0 | Core surface 11 | Native reuse only |
+| 24 | 调拨单 | Designed | Post-MVP | Deferred | Native reuse only later |
+| 25 | 库存调整 | Designed | MVP-P1 | Core surface 09 | Native reuse + reason/audit |
+| 26 | 盘点任务 | Designed | Post-MVP | Deferred | Native reuse only later |
+| 27 | 批次列表/表单 | Done | MVP-P0 | Core surface 12 | Native reuse only |
+| 28 | 低库存 | Designed | MVP-P1 | Core surface 07 | Native filtered action |
+| 29 | 生产订单列表/表单 | Done | MVP-P0 | Core surface 13 | Native + extend |
+| 30 | 工序列表 | Designed | MVP-P1 | Core surface 13 | Native reuse only |
+| 31 | 工序表单 | Designed | MVP-P1 | Core surface 13 | Native + action guards |
+| 32 | 今日生产 | Designed | Post-MVP | Deferred | Native action later |
+| 33 | 生产异常 | Designed | MVP-P1 | Core surface 13 | Thin custom exception record |
+| 34 | 检验单列表/表单 | Done | MVP-P0 | Core surface 14 | Native/thin quality model after audit |
+| 35 | NCR 列表/表单 | Done | MVP-P0 | Core surface 15 | Thin custom Kanban/Form |
+| 36 | 质量历史 | Designed | Post-MVP | Deferred | Native List/Pivot later |
+| 37 | 待发货 | Designed | MVP-P0 | Core surface 16 | Native filtered picking action |
+| 38 | 发货单列表/表单 | Done | MVP-P0 | Core surface 16 | Native + final gate extension |
+| 39 | 交付历史 | Designed | MVP-P1 | Core surface 16 | Native filtered action |
+| 40 | 全链路追溯 | Done | MVP-P1 | Core surface 17 | Owl read-only graph + native records |
+| 41 | 订单交付报表 | Done | MVP-P1 | Core surface 22 | Native Graph/Pivot/Dashboard |
+| 42 | 生产分析 | Designed | Post-MVP | Deferred | Native analytics later |
+| 43 | 质量分析 | Designed | Post-MVP | Deferred | Native analytics later |
+| 44 | 库存分析 | Designed | Post-MVP | Deferred | Native analytics later |
+| 45 | 供应商分析 | Designed | Post-MVP | Deferred | Native analytics later |
+| 46 | 工厂OS设置 | Done v2 | MVP-P0 | Core surface 18 | `res.config.settings` extension |
+| 47 | 用户与角色 | Designed | MVP-P0 | Core surface 19 | Native reuse only + scoped fields |
+| 47A | 首次初始化向导 | Done | MVP-P0 | Core surface 20 | Transient Model Wizard |
+| 48 | 移动今日生产任务 | Done | MVP-P1 | Core surface 21 | Responsive native action |
+| 49 | 移动生产报工 | Done | MVP-P1 | Core surface 21 | Thin mobile action |
+| 50 | 移动报告生产异常 | Designed | MVP-P1 | Core surface 21 | Thin mobile action |
+| 51 | 移动工序完成确认 | Designed | MVP-P1 | Core surface 21 | Thin confirmation state |
+| 52 | 移动今日仓库任务 | Done | MVP-P1 | Core surface 10/11 | Responsive native action |
+| 53 | 移动扫码收货 | Done | MVP-P1 | Core surface 10 | Thin mobile action |
+| 54 | 移动生产领料 | Done | MVP-P1 | Core surface 11 | Thin mobile action |
+| 55 | 移动库存调拨 | Designed | Post-MVP | Deferred | Native mobile later |
+| 56 | 移动库存盘点 | Designed | Post-MVP | Deferred | Native mobile later |
+| 57 | 移动库存调整 | Designed | Post-MVP | Deferred | Native mobile later |
+| 58 | 移动待检任务 | Designed | MVP-P1 | Core surface 14 | Responsive native action |
+| 59 | 移动执行检验 | Done | MVP-P1 | Core surface 14 | Thin mobile action |
+| 60 | 移动 NCR 快速创建 | Designed | Post-MVP | Deferred | Thin mobile action later |
+| 61 | 扫码结果/无结果 | Designed | MVP-P1 | Core surface 10/11/14 | Shared mobile state |
+| 62 | 登录/数据库入口 | Designed | MVP-P0 | Platform | Native reuse only + brand |
+| 63 | App Switcher/角色菜单 | Designed | MVP-P0 | Platform | Native reuse only |
+| 64 | 全局搜索结果 | Designed | Post-MVP | Deferred | Deferred |
+| 65 | 通知中心 | Designed | Post-MVP | Deferred | Use native Activity in MVP |
+| 66 | 我的活动 | Designed | MVP-P1 | Platform | Native reuse only |
+| 67 | 附件查看/上传 | Designed | MVP-P0 | Platform | Native reuse only |
+| 68 | 审计日志 | Designed | MVP-P0 | Governance | Native mail tracking + thin audit view |
+| 69 | 外部供应链协同 | Designed | Phase 8 | Deferred | Connector module, not v0.1 |
+
+### 22 个 MVP 核心工作面
+
+一个工作面可复用多个 Odoo List/Form/移动状态，因此不等同于页面行数：01 今日工作台；02 客户；03 报价/订单；04 产品；05 BOM；06 供应商；07 缺料/低库存；08 采购订单；09 库存总览/调整；10 收货；11 领料；12 批次；13 MO/工序/异常；14 检验；15 NCR；16 待发货/发货/交付历史；17 追溯；18 设置；19 用户与角色；20 初始化向导；21 移动生产/仓库/质检动作；22 订单交付报表。
+
+其中 MVP-P0 先跑通主链与治理，MVP-P1 再补工作台、移动效率、追溯和基础报表。Post-MVP、Phase 8 和 Deferred 项即使已有设计，也不得自动进入 v0.1 开发。
+
 ## 补齐结果（2026-09-07）
 
-本轮新增 9 张多页面设计板，已把上表 69 个页面/动作全部映射到可见 UI。完成状态分为：
+当前设计板已把上表 70 个页面/动作全部映射到可见 UI。完成状态分为：
 
 - 16 张独立高分辨率核心页面（15 为被替代历史稿，不计有效基准）；
 - 10 张多页面设计板，共包含 35 个桌面/移动子页面及关键状态；
@@ -128,7 +213,8 @@
 | `21-mobile-missing-actions-board.png` | 生产异常、移动调拨、盲盘、待检、NCR、扫码多结果与调整确认 |
 | `22-secondary-master-data-and-access-board.png` | 产品版本、供应商列表、低库存、用户角色 |
 | `23-login-attachments-and-sync-board.png` | 登录、角色应用菜单、附件、同步日志/数据权限 |
-| `24-mobile-confirmation-and-offline-board.png` | 工序完工、库存调整、检验确认、断网/提交失败 |
+| `24-mobile-confirmation-and-offline-board.png` | 历史稿，不得实现本地草稿、自动同步或离线事务 |
+| `24-mobile-confirmation-and-network-failure-v2.png` | 活动基准：工序完工、库存调整、检验确认、网络失败/手动重试 |
 | `25-odoo-native-setup-and-settings-v2.png` | 六步初始化向导、十组设置、系统保护只读摘要 |
 
 ### 设计完成度说明
@@ -142,6 +228,8 @@
 
 ### 开发前必须执行的视觉校正
 
-多页面板用于确认信息结构和交互，不作为像素级实现截图。个别设计板的图像生成结果出现顶部导航字样、示例编号或日期轻微漂移；实现时必须以 01、02、04–15 的白色 Odoo 原生 Navbar 和本文的准确页面名称为准，禁止照抄漂移文字。
+多页面板用于确认信息结构和交互，不作为像素级实现截图。个别设计板的图像生成结果出现顶部导航字样、示例编号或日期轻微漂移；实现时必须以 01、02、04–14、24-v2、25 的白色 Odoo 原生 Navbar 和本文的准确页面名称为准，禁止照抄漂移文字。
 
 设置相关实现以 25 为准，15 仅保留作历史对比。任何 C 类系统不变量不得因为旧图出现开关而进入开发。
+
+网络失败实现以 `24-mobile-confirmation-and-network-failure-v2.png` 为准；文件名含 `offline-board` 的旧稿仅作历史对比。

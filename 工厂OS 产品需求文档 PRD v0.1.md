@@ -19,7 +19,7 @@
 - B：产品默认，提供推荐值并允许有限覆盖；
 - C：系统不变量，不得出现在设置页或提供关闭开关。
 
-具体字段、默认值、作用域、权限、影响和审计要求以 [`docs/factory_os/configuration-matrix.md`](docs/factory_os/configuration-matrix.md) 为准；租户隔离、原生状态、库存真相、质量 Gate、安全、Connector 隐私和审计底线以 [`docs/factory_os/system-invariants.md`](docs/factory_os/system-invariants.md) 为准。两份文件与本 PRD 冲突时，以其中更严格的正确性和安全约束为准。
+配置目录以 [`docs/factory_os/configuration-matrix.md`](docs/factory_os/configuration-matrix.md) 为准；技术字段以 [`docs/factory_os/configuration-schema.md`](docs/factory_os/configuration-schema.md) 为准；依赖变化以 [`docs/factory_os/configuration-dependency-graph.md`](docs/factory_os/configuration-dependency-graph.md) 为准；租户隔离、原生状态、库存真相、质量 Gate、安全、Connector 隐私、网络失败和审计底线以 [`docs/factory_os/system-invariants.md`](docs/factory_os/system-invariants.md) 为准。文档冲突时，以更具体且更严格的正确性和安全约束为准。
 
 ---
 

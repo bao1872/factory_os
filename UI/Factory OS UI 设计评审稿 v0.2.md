@@ -187,12 +187,15 @@ Odoo 顶部 Navbar 展示 Factory OS 的主要应用入口；App Switcher 展示
 - 批次/序列号追踪是产品级配置，不设置工厂级总开关。
 - 设置页只使用有界枚举与明确依赖；所有配置变更必须审计。
 - 首次安装使用六步向导生成推荐配置，日常修改仍进入 Odoo `res.config.settings`。
+- v0.1 不支持离线事务；网络失败只保留当前页面输入、显示未提交并允许手动重试，服务器确认前不得呈现成功。
 
-配置字段与不可变约束分别以 `docs/factory_os/configuration-matrix.md` 和 `docs/factory_os/system-invariants.md` 为准。
+配置目录、技术字段、依赖行为与不可变约束分别以 `docs/factory_os/configuration-matrix.md`、`configuration-schema.md`、`configuration-dependency-graph.md` 和 `system-invariants.md` 为准。
+
+`Concepts/24-mobile-confirmation-and-offline-board.png` 为历史稿，包含错误的“本地保存/自动同步”表达，不得作为开发依据。活动基准为 `Concepts/24-mobile-confirmation-and-network-failure-v2.png`。
 
 ## 11. 页面覆盖状态
 
-目前 15 张基准图已经覆盖：全局导航、今日工作台、订单、产品/BOM、采购缺料、采购订单、库存/批次、生产、检验、NCR、交付、追溯、报表、设置，以及操作员/质检/仓库移动端。
+活动基准图已经覆盖：全局导航、今日工作台、订单、产品/BOM、采购缺料、采购订单、库存/批次、生产、检验、NCR、交付、追溯、报表、设置，以及操作员/质检/仓库移动端。设置使用 25，网络失败使用 24-v2；15 与旧 24 均不属于活动基准。
 
 客户与供应商不再单独创建强定制母版，直接复用 `res.partner` 的 List/Form/Contact/Chatter，通过默认搜索域、角色权限、smart buttons 和少量 Factory OS 字段区分。这部分沿用 `02-odoo-native-order-form.png` 的表单规范。
 

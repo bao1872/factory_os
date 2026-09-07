@@ -1,6 +1,6 @@
 # Factory OS 配置矩阵 v1.0
 
-本文件是设置页、初始化向导、权限与自动化测试的共同基线。原则：业务差异可以配置；产品偏好提供默认值；系统正确性、安全和数据真实性不得配置。
+本文件是产品可读的配置目录。原则：业务差异可以配置；产品偏好提供默认值；系统正确性、安全和数据真实性不得配置。开发实现必须同时遵循 [`configuration-schema.md`](configuration-schema.md) 的字段级定义和 [`configuration-dependency-graph.md`](configuration-dependency-graph.md) 的依赖行为；自然语言与 Schema 冲突时，以 Schema 中更严格的约束为准。
 
 ## 分类与实现规则
 
@@ -39,9 +39,9 @@
 | 报工模式 | A | 管理员与操作员 | Company | Production Manager | 报工入口 | 是；管理员/操作员/两者 |
 | 条码要求 | A | 仓库和操作员可选 | Role | Factory OS Admin | 移动动作校验 | 是；必需/可选/不用 |
 | 成品质检 Gate | B | 质量模块启用时开启 | Company | Quality Manager | Ready-to-Ship | 是；未通过不得进入待发货 |
-| 不合格品处置 | A | 记录并影响库存状态 | Company | Quality Manager | 库存、报废、NCR | 是；仅记录/创建报废/阈值以上要求 NCR |
+| 不合格库存处置 | A | 隔离 | Company | Quality Manager | 隔离、报废、退供应商、返工 | 是；`quarantine/scrap/return_supplier/rework`，不存在 `record_only` |
 | 检验类型 | A | 来料、过程、成品启用 | Company | Quality Manager | 检验菜单与触发点 | 是；各自独立开关 |
-| NCR 强制规则 | B | 高严重度或人工升级时强制 | Company | Quality Manager | 不合格闭环 | 是；每次失败/高严重度/人工升级 |
+| NCR 创建策略 | B | 严重度达到 High 时创建 | Company | Quality Manager | 不合格闭环 | 是；`manual/severity_threshold/every_failure`，不影响库存处置 |
 | 严重度阈值与显示名称 | A | Low/Medium/High/Critical | Company | Quality Manager | NCR 优先级、SLA | 是；四级语义固定，只可改阈值和显示名 |
 | NCR SLA | A | 低 7天、中 5天、高 2天、关键 1天 | Company | Quality Manager | 活动截止、超期 | 是；按严重度 |
 | 抽样数量 | A | 1 | Product/Inspection type | Quality Manager | 检验单 | 是；简单整数，不实现 AQL 引擎 |
