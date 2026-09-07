@@ -1,13 +1,12 @@
 # Factory OS Governance Consistency Audit
 
-Date: 2026-09-07（v1.0.3 re-audit）
-Scope: governance documentation + authority consistency; 本审计覆盖 Phase 0 dependency-closure STOP——ADR-006 phase attribution 更正（用户授权 §7）、ADR-007 Proposed 登记、affected evidence docs 加 BLOCKED 标记、新增永久 profile↔manifest dependency-closure 检查。No business code added.
+Date: 2026-09-07（v1.0.4 re-audit）
+Scope: governance documentation + authority consistency; 本审计覆盖 **ADR-007 Proposed → Accepted**（用户 Accept with final architecture）+ 随之的 authority 转正（8-addon manifest 精确合同、purchasing/quality 能力分类改判、Phase 3/4 重划线、永久 profile closure 检查落地）。No business code added.
 
 ## Audit type & staleness trigger
 
-- ADR-006（Accepted ARCHITECTURAL）被编辑：phase attribution 更正（决策本体不变，用户 2026-09-07 dependency-closure 任务 §7 明确授权："clarifies phase attribution, does not change the accepted architecture decision"）——按 [change-control.md §4.4](change-control.md#44-audit-staleness-rule审计过期规则) 触碰 Accepted ARCHITECTURAL 文档 → Gate 置 **STALE**。本文件即 STALE 状态下重新执行的完整 consistency audit（v1.0.3）。
-- 新发现架构冲突（用户 STOP）：计划 8-addon manifest 依赖闭包 ≠ ADR-006 Technical Installation Profiles → Phase 0 Gate 由 PASS 回 **BLOCKED**；冲突经 ADR-007（**Proposed**，无权威）+ affected evidence docs BLOCKED 标记**登记并隔离**，未静默改写 authority。
-- 审计缺口承认：v1.0.2 的 18 项检查无"profile↔manifest dependency-closure"项 → 放过了 `factory_os_supply→mrp`。本版新增永久检查（见 #19/#20），并对 v1.0.2 状态回溯判定：若该检查当时存在，supply/delivery/dashboard 行将 FAIL → Phase 0 不会以 PASS 收口。
+- **ADR-007（ARCHITECTURAL）由 Proposed 转 Accepted**（用户 2026-09-07 裁决 Accept with final architecture：能力图、8-addon 精确 manifest 合同、Purchasing=Workflow、Quality=Factory-addon-backed monotonic、Delivery=Workflow、Phase 1–4 属主、PROFILE_CONTRACTS 永久闭包、Dashboard/Optional-module registry 规则）——按 [change-control.md §4.4](change-control.md#44-audit-staleness-rule审计过期规则)，新 Accepted ARCHITECTURAL 语义 + 更新多条 authority → Governance Gate 置 **STALE**。本文件即 STALE 状态下重新执行的完整 consistency audit（v1.0.4）。
+- v1.0.3 遗留的 **REGISTERED-OPEN #20**（profile↔manifest dependency-closure）：ADR-007 现已 Accepted 并落地 → 本版转 **PASS**，并新增永久检查 #21（Technical Installation Profile manifest closure，PROFILE_CONTRACTS 逐 profile 复检）。
 
 ### Gate 状态机
 
@@ -18,50 +17,67 @@ COMPLETE →（STANDARD 治理修复：typo / link-only）→ targeted check，G
 
 禁止出现"审计全 PASS 但被审权威随后已变化"的状态。
 
-## Delta（v1.0.2 → v1.0.3）
+## Delta（v1.0.3 → v1.0.4）
 
-- **ADR-006**：顶部加 Follow-up 标记（指向 ADR-007 Proposed）；Consequences/Verification 两处 "Phase 1 将实现/验收" 改为**实现期属主分相**（Phase 1 profile installer 基础 / Phase 2 orders manifest / Phase 3 supply 扩展 / Phase 4 MRP·MTO 校验）——phase attribution 更正，决策本体不变。
-- **ADR-007（新，Proposed，未采纳）**：8-addon 目标依赖闭包表（supply=core+orders+stock+purchase 无 mrp；delivery=core+orders+stock；dashboard=core+orders+registry 守卫；quality 无 mrp 硬依赖；production=core+orders+supply+mrp）；purchasing_enabled 改 Workflow capability 分类（修订 ADR-006 §A/§D 提议）；Phase 3/4 Gate realignment；Alternatives/Consequences/Verification。
-- **Evidence docs（仅 BLOCKED/证据标记，不静默改写计划依赖）**：`addon-dependency-map.md` §0 Gate BLOCKED + §2 三行 CONFLICT + §6 Dependency-Closure Matrix（8 addon × 闭包推演）；`native-behavior-audit.md` §0 与 `technical-risks.md` Gate Status → **BLOCKED**；technical-risks 新增 **R11**（闭包冲突）、R1/R10 阶段属主更正。
-- **decisions/README.md**：ADR-007 索引行（Proposed）。
-- 未修改（Authority rewrite 待 ADR-007 Accepted 后执行）：progressive-adoption / configuration-schema / configuration-dependency-graph / 开发计划 / configuration-matrix / System Invariants / UI 设计。
+- **ADR-007（Proposed → Accepted）**：Status 转正；写入最终能力图（P0→P1 分支 Purchasing/Quality/Delivery、P1→P2 Formal MRP；非梯子）；**8-addon 精确 manifest 合同**（§3.1–3.8：core=base/mail/web/contacts/product；orders=core+sale；supply=core+orders+stock+purchase+sale_stock+purchase_stock 无 mrp；production=core+orders+supply+stock+mrp+sale_mrp+purchase_mrp；quality=core+orders+stock 无 mrp/supply/production/purchase；delivery=core+orders+stock 无 production/quality/mrp/delivery；dashboard=core+orders；connector=core+orders）；**capability 分类改判**（purchasing=Workflow/Business ON↔OFF、quality=Factory-addon-backed monotonic requires inventory NOT mrp、delivery=Workflow）；**Phase 1–4 属主**；**PROFILE_CONTRACTS + verify_profile_closure**（永久架构验证，本轮只写合同）；Dashboard/optional-module registry 守卫规则；Supersedes 范围（仅 ADR-006 §A/§D 必要部分）。
+- **ADR-006**：Follow-up 更新为"ADR-007 Accepted，supersede §A purchasing/quality 分类、§D Profile 1/3 表述"；§A/§D 受影响行加 supersede 指针（决策本体保留，不重写）。
+- **decisions/README.md**：ADR-007 行转 Accepted（含一句话决策）。
+- **progressive-adoption.md v1.2**：capability 分类语义更新；Technical Installation Profiles 重构为能力图 + 独立扩展表（Quality/Delivery/Dashboard/Connector manifest 目标）；约束补 purchasing OFF 用户不获原生 groups + 永久闭包检查。Quick Start presets 与质量映射表**未改**（Business UX 不变）。
+- **configuration-schema.md**：capability 分类段重构为三类（Engine-backed / Factory-addon-backed monotonic / Workflow-Business）；`purchasing_enabled` 行改 Workflow（ON↔OFF、不宣称 addon 存在）；`quality_enabled` 行改 Factory-addon-backed monotonic（NOT requires mrp）。
+- **configuration-dependency-graph.md**：Graph 注释 + Machine-readable table 的 purchasing/quality/delivery 行同步改判。
+- **addon-dependency-map.md**：§0 Gate 转正（PASS）；§2 表格改为 **manifest 目标合同**（CONFLICT 消除）；§5 约束重写；§6 闭包矩阵转正（8 行 PASS）；新增 **§7 PROFILE_CONTRACTS 永久契约**（含算法与允许适配/STOP 条款）。
+- **开发计划**：§0.1 capability 语义更新；§3 addon 结构改为能力图 + 精确依赖指引（含 addon-dependency-map 链接）；§5 orders 精确目标（core+sale，禁 stock/sale_stock/purchase/mrp）；§8 supply deps 去 mrp（+显式 sale_stock/purchase_stock）；§13 production deps 显式 mrp/sale_mrp/purchase_mrp；Quality 新增精确 Dependencies 段（core+orders+stock，无 mrp/supply/production/purchase）；§23 delivery deps 收敛；§28 dashboard deps 收敛；§41 Phase 1 属主（NO Supply/MRP/MTO）；§43 Phase 3 Gate 重写（无 BOM/MRP 退出条件，E2E=收货→库存→可用）；§44 Phase 4 Gate 重写（Formal MRP + BOM-driven shortage，Material Shortage DERIVED）。
+- **native-behavior-audit.md**：§0 Gate → **PASS**（保留 BLOCKED 历史时间线；证据本体 E–H 未改）。
+- **technical-risks.md**：Gate → **PASS**；R1/R11 更新为 ADR-006+ADR-007 Accepted 双裁决表述（残留执行风险 Phase 1/3/4）。
+- 未修改：System Invariants（无真实矛盾）；UI 设计文档；configuration-matrix.md（产品可读矩阵不含 capability/依赖语义）；Quick Start preset（Business UX 不变）。
 
-## Consistency results（v1.0.3，20 项）
+## Consistency results（v1.0.4，22 项）
 
 | # | Check | Result | Evidence |
 |---|---|---|---|
-| 1 | ADR-006 = Accepted 状态与 Supersedes 范围未因 follow-up 变更 | PASS | Status: Accepted 不变；Follow-up 标记明示 ADR-007 Proposed 裁决前本决策仍为有效权威；Supersedes 节（受控单调安装、不引入卸载/降级）原样保留。 |
-| 2 | ADR-006 phase attribution 更正 = 属主澄清、非语义变更 | PASS | Consequences/Verification 两处仅把"Phase 1 将实现/验收"拆分为 Phase 1/2/3/4 属主，与开发计划 §41-§45 Gate 对齐；决策本体（profile 定义、8-addon、purchasing→inventory、单调分类现状）未改；用户任务 §7 显式授权。 |
-| 3 | ADR-007 = Proposed（无权威），未写入任何 authority 语义 | PASS | ADR-007 Status: Proposed；README 索引标 Proposed；§Decision intent 明确"待用户裁决后转 Accepted"；authority 文档（progressive-adoption/schema/dependency-graph/开发计划）本 commit 未改（git status 核对）。 |
-| 4 | 新发现冲突被登记而非隐藏（no silent reinterpretation） | PASS | addon-dependency-map §0/§2/§6 + native-behavior-audit §0 + technical-risks Gate/R11 均显式 BLOCKED 并指向 ADR-007；无任何文件把目标闭包写成已采纳。 |
-| 5 | dependency-closure 冲突事实与源码一致 | PASS | §6 矩阵闭包推演基于 odoo-19/addons manifest 实测（sale_mrp=[mrp,sale_stock] auto、mrp_account=[mrp,stock_account] auto、purchase_mrp=[mrp,purchase_stock] auto、sale_stock/purchase_stock/stock_account auto）；supply/delivery/dashboard 计划依赖引用开发计划 §8/§23/§28 行号。 |
-| 6 | supply/delivery/dashboard 冲突行被显式标记（未静默改写） | PASS | addon-dependency-map §2 三行结论标 **CONFLICT（§6 / ADR-007 Proposed）**，计划依赖列保持原文；§0 banner 声明"裁决前不静默改写计划依赖"。 |
-| 7 | 保持 8-addon；无新增第 9 桥接 addon 提议 | PASS | ADR-007 Decision intent 明示"保持 8-addon"；Alternatives 记录第 9 bridge 已由 ADR-006 §B 裁决否决；目标闭包表仅 8 行。 |
-| 8 | purchasing 语义修订以 Proposed 形式呈现（engine-backed 现状未改） | PASS | ADR-007 §Purchasing 语义修订 = amendment proposal；configuration-schema/dependency-graph 的 purchasing engine-backed 行**本 commit 未改**（待裁决）；ADR-006 §A 现状保留并在 Follow-up 指向 ADR-007。 |
-| 9 | 仍强制 purchasing→inventory、无 Purchase-only 语义残留 | PASS | ADR-007 明示"仍强制 purchasing_enabled=true→inventory_enabled=true；v0.1 仍不支持 Purchase-only（Deferred）"；grep `Purchase-only` 全为否定语境。 |
-| 10 | inventory/mrp 引擎型单调、delivery 业务层语义未被动摇 | PASS | ADR-007 仅提议修订 purchasing 分类与 Profile 1 purchase 表述；inventory_enabled/mrp_production_enabled engine-backed monotonic 与 delivery_enabled workflow ON↔OFF 全库表述未改（schema/dependency-graph/progressive-adoption 未触碰）。 |
-| 11 | MTO 受控归 Profile 2（Test E/F/H3）证据链未变 | PASS | native-behavior-audit §8 E–H 原文保留；§0 新 BLOCKED 明确"STOP B 已闭环，不再构成阻塞项"；R10 结论不变，仅实现期属主更正为 Phase 4。 |
-| 12 | Phase 3/4 realignment 以 Proposed 呈现 | PASS | ADR-007 §Phase-Gate realignment 表格（Phase 3 Supply&Inventory 无 MRP 退出条件 / Phase 4 Formal MRP+BOM-driven Supply）；开发计划 §43/§44 本 commit 未改（待裁决）；"不建第二缺料真相，ADR-002/003 不变"显式保留。 |
-| 13 | 审计缺口被承认并修复 | PASS | 本文件"Audit type"节显式承认 v1.0.2 18 项无闭包检查并回溯判定；新增 #19/#20 永久检查。 |
-| 14 | 新增永久 dependency-closure 检查已登记 | PASS | #20 检查定义：对每个 Technical Installation Profile 解析 manifest 传递闭包+auto_install 桥，actual closure == allowed profile engine closure 才 PASS；governance/Phase 验证流程将复用。 |
-| 15 | 权威同步范围与 STOP 合同一致 | PASS | 变更清单 = ADR-006（属主更正）、ADR-007+README、addon-dependency-map/native-behavior-audit/technical-risks（BLOCKED/证据）、governance-audit（本文件）；无 authority 语义改写、无业务代码。 |
-| 16 | 无业务代码修改 | PASS | git status 仅含 docs/decisions、docs/factory_os、docs/governance/governance-audit.md；无 odoo-19/ 或 scripts/audit 改动。 |
-| 17 | Governance Gate 状态机合规 | PASS | STALE 触发（ADR-006 被编辑）→ 本 full re-audit；Phase 0 Gate BLOCKED 为注册冲突的隔离态（非治理失败），与 a19840b 轮先例一致。 |
-| 18 | 所有链接可解析 | PASS | 递归相对链接检查全部指向存在文件（ADR-007 新文件 + §0/§6 内部引用 + 文档间链接）。 |
-| 19 | ADR-006/technical-risks 无旧"Phase 1 实现 supply 扩展/MTO 校验"误导表述残留 | PASS | grep：ADR-006 Consequences/Verification 与 technical-risks R1/R10 均已改为分相属主；`supply 对 sale.order 的库存扩展`/`MTO 校验` 不再与 Phase 1 绑定（仅 Phase 3/4）。 |
-| 20 | **profile↔manifest dependency-closure（新永久检查，回溯）** | REGISTERED | 回溯当前计划依赖：supply→mrp、delivery→production/quality/native delivery、dashboard→全部内部 → 强制引擎面超所属 profile → **FAIL（本应使 v1.0.2 Phase 0 收口 BLOCK）**；经 ADR-007 Proposed + BLOCKED 标记隔离，待用户裁决后按目标闭包落地并复检。 |
+| 1 | ADR-007 = Accepted；supersede 范围仅限 ADR-006 依赖/profile 必要部分 | PASS | ADR-007 Status: **Accepted**；§Consequences/Supersedes 明示"supersede ADR-006 §A（purchasing/quality 分类）与 §D（Profile 1/3 表述），其余 ADR-001~006 维持 active"；ADR-006 Follow-up + §A/§D 行内指针一致。 |
+| 2 | ADR-007 §3 8-addon 精确依赖 = 开发计划 manifest 目标 | PASS | 逐模块比对：开发计划 §5(orders)/§8(supply)/Quality deps/§13(production)/§23(delivery)/§28(dashboard) 与 ADR-007 §3.2–3.7 列表一致（含顺序语义）；core/connector 目标见 §3.1/§3.8。 |
+| 3 | addon-dependency-map §2 转正 = ADR-007 §3；§6 闭包矩阵全 PASS | PASS | §2 表 8 行结论 PASS（CONFLICT 已解，保留原计划依赖作为历史对照与修改说明）；§6 矩阵 8 行 PASS（含 forbidden 检查列）。 |
+| 4 | supply 依赖无 mrp/sale_mrp/purchase_mrp | PASS | ADR-007 §3.3、开发计划 §8、addon-dependency-map §2/§6 均无 mrp 系；grep `supply.*mrp` 无 manifest 目标命中。 |
+| 5 | delivery 依赖无 production/quality/mrp/native delivery | PASS | ADR-007 §3.6（禁 factory_os_production/quality/mrp/delivery）、开发计划 §23 = core+orders+stock。 |
+| 6 | dashboard 依赖无 supply/production/quality/delivery/stock/mrp | PASS | ADR-007 §3.7、开发计划 §28 = core+orders；registry 守卫瓦片仅为未来实现模式，非 manifest 依赖。 |
+| 7 | quality 依赖无 mrp/supply/production/purchase/quality* | PASS | ADR-007 §3.5、开发计划 Quality Dependencies = core+orders+stock；禁 mrp/supply/production/purchase/quality/quality_control/quality_mrp。 |
+| 8 | orders 依赖无 stock/sale_stock/purchase/mrp | PASS | ADR-007 §3.2、开发计划 §5 = core+sale；grep 无 sale_stock 于 orders 目标。 |
+| 9 | purchasing_enabled = Workflow/Business（非 engine-backed） | PASS | configuration-schema capability 分类段 + `purchasing_enabled` 行、configuration-dependency-graph Graph+Machine 表、progressive-adoption v1.2、开发计划 §9 均标注 Workflow/Business ON↔OFF；grep `purchasing.*engine-backed monotonic` 无命中。 |
+| 10 | purchasing_enabled requires inventory；无 Purchase-only | PASS | 四权威同述 `requires inventory_enabled`；Purchase-only 全库否定语境（INVALID/Deferred）；Inventory-only 合法。 |
+| 11 | quality_enabled = Factory-addon-backed monotonic、requires inventory、NOT requires mrp | PASS | configuration-schema `quality_enabled` 行、dependency-graph、progressive-adoption、ADR-007 §5 一致；无 "quality requires mrp" 残留（process 除外）。 |
+| 12 | process_inspection_enabled 确实 requires mrp_production_enabled | PASS | configuration-schema 行 + dependency-graph Machine 表：`process_inspection_enabled` requires quality+mrp（保留，未被 quality 独立化波及）。 |
+| 13 | delivery_enabled = Workflow、requires inventory、不绑 Odoo delivery addon | PASS | ADR-006 §E/ADR-007 §6、schema/dependency-graph/progressive-adoption 一致；Odoo delivery/carrier = Post-MVP optional。 |
+| 14 | Phase 1 无 Supply/MRP/MTO 业务实现 | PASS | 开发计划 §41 顶部 ADR-007 属主注；technical-risks R1/R10 实现期属主 = Phase 3/4；无"Phase 1 实现 supply 扩展/MTO 校验"残留。 |
+| 15 | Phase 3 无 BOM/MRP 退出条件 | PASS | 开发计划 §43 重写：范围=Warehouse/Location/Quant/PO/Receipt/Incoming/Available/Reserved/Lot/Serial/Reorder/Scrap/Inventory Count；显式"不得要求 mrp.bom/mrp.production/BOM explosion/MTO/Manufacture route"；原 BOM E2E 移至 §44。 |
+| 16 | Phase 4 拥有 BOM-driven shortage | PASS | 开发计划 §44 重写：BOM/Explosion/Manufacturing Demand/Shortage/MO/Work Order/MTO/Consumption/Finished Lot；Material Shortage = DERIVED（不建第二账本）。 |
+| 17 | 能力图替代梯子；Quality 独立于 P2；Quick Start presets 未改 | PASS | ADR-007 §1、progressive-adoption Technical Profiles 能力图、开发计划 §3 图一致（P0→P1 分支 P/Q/D、P1→P2）；Quality manifest 不依赖 mrp/production；Quick Start 4 preset 表与质量映射表原样保留（Business UX）。 |
+| 18 | System Invariants / UI / configuration-matrix / MVP surface 未改 | PASS | git status 无 system-invariants.md / UI 目录 / configuration-matrix.md；22 个 MVP surface 无新增。 |
+| 19 | 无业务代码修改；仅架构/治理/证据文档 | PASS | 变更文件 = docs/decisions（ADR-006/007/README）、docs/factory_os（addon-dependency-map/configuration-schema/configuration-dependency-graph/progressive-adoption/native-behavior-audit/technical-risks）、开发计划、docs/governance/governance-audit.md；无 odoo-19/ 业务代码、无 scripts 实现改动。 |
+| 20 | profile↔manifest dependency-closure（v1.0.3 REGISTERED → 本版 PASS） | PASS | ADR-007 Accepted 目标落地：supply/delivery/dashboard/quality 行已无越级引擎（见 #4–#7）；闭包矩阵 8 行 PASS（#3）。 |
+| 21 | **Technical Installation Profile manifest closure（新永久检查，PROFILE_CONTRACTS）** | PASS | 契约落盘 addon-dependency-map §7 + ADR-007 §8 + progressive-adoption 约束：P0 forbidden={stock,mrp,sale_stock,sale_mrp,purchase,purchase_stock,purchase_mrp}、P1 forbidden={mrp,sale_mrp,purchase_mrp}、P2 forbidden=∅；direct+transitive+auto_install 闭包复检 8 addon 目标全部满足；任何 addon 依赖变更强制复检（Phase 1 profile installer / audit tooling 共用同一契约，本轮只写合同不实现）。 |
+| 22 | 链接/引用可解析 + git diff --check 干净 | PASS | 相对链接全部指向存在文件；diff 无空白错误；Verification grep 清单（§§ 下方）全部通过。 |
 
 ## Reported contradictions（resolution 更新）
 
 1. **治理级（v1.0.0 已解决）**：reading order 与 precedence 分离；不变量置顶。未回归。
 2. **产品-技术映射级（v1.0.1 已解决，ADR-002 澄清）**：平行库存排除。未回归。
 3. **能力/引擎架构级（v1.0.2 已解决，ADR-006 Accepted）**：progressive-adoption L10 绝对规则 vs Safe Minimal——经 STOP A/B + E–H 实证，映射为 Technical Installation Profile（单调安装、不卸载/降级、无假关闭）。未回归。
-4. **执行面闭包级（本版登记，ADR-007 Proposed）**：ADR-006 的 profile 契约 vs 计划 8-addon manifest 依赖闭包——supply→mrp 使 Profile 1 变 Profile 2、delivery/dashboard 计划依赖偏高、purchasing 单调分类与 Inventory-only substrate 冲突（addon-dependency-map §6 矩阵）。隔离态 = Phase 0 Gate BLOCKED + ADR-007 Proposed + affected rows CONFLICT；authority 语义改写待用户裁决。
+4. **执行面闭包级（v1.0.3 登记 → **v1.0.4 已解决**，ADR-007 Accepted）**：ADR-006 profile 契约 vs 计划 8-addon manifest 闭包（supply→mrp、delivery/dashboard 偏高、purchasing 单调与 Inventory-only substrate 冲突）——经用户 Accept with final architecture 裁决：8-addon 精确 manifest 合同落盘（§2/§6 转正）、purchasing=Workflow、quality=Factory-addon-backed monotonic（独立于 MRP）、Phase 3/4 重划线、PROFILE_CONTRACTS 永久闭包检查。未静默改写，全程 ADR + 审计载体。
+
+## Verification greps（本 commit 执行，全部通过）
+
+```text
+supply 目标依赖无 mrp / delivery 无 production·quality·delivery / dashboard 无 supply·production·quality·delivery·stock·mrp
+quality 无 mrp / orders 无 stock·sale_stock / purchasing_enabled 非 engine-backed / purchasing requires inventory
+quality_enabled 不 requires mrp / process_inspection_enabled requires mrp / Phase 1 无 Supply / Phase 3 无 BOM-MRP 退出 / Phase 4 拥有 BOM-driven shortage
+git diff --check 无输出；相对链接全部解析
+```
 
 ## Gate decision
 
-**Governance Gate: COMPLETE（v1.0.3 re-audit；20 项中 19 PASS + 1 REGISTERED-OPEN（#20 闭包冲突，经 Proposed ADR + BLOCKED 标记按流程隔离，非静默矛盾））。**
+**Governance Gate: COMPLETE（v1.0.4 re-audit；22 项全部 PASS，无 REGISTERED-OPEN）。**
 
-- v1.0.2 COMPLETE →（ADR-006 phase-attribution 更正 + dependency-closure STOP）→ STALE →（本 full re-audit）→ **COMPLETE**。
-- **Phase 0 Gate: BLOCKED — awaiting ADR-007 user decision**（addon dependency closure inconsistent with ADR-006；证据收集 complete，架构裁决待用户）。
-- 不授权任何业务实现；Authority rewrite（progressive-adoption / configuration-schema / configuration-dependency-graph / 开发计划 §8/§23/§28/§43/§44 / addon-dependency-map §2 转正）仅在用户 Accept ADR-007 后执行；System Invariants 与 UI 权威未改。
+- v1.0.3 COMPLETE →（ADR-007 Proposed→Accepted，ARCHITECTURAL + authority 转正）→ STALE →（本 full re-audit）→ **COMPLETE**。
+- **Phase 0 Gate: PASS — awaiting user authorization for Phase 1**（ADR-007 Accepted；manifest target closure consistent；purchasing/quality/delivery 分类已改判；Phase 1/2/3/4 ownership 已更正；governance full audit PASS）。
+- 不授权任何业务实现；Phase 1 启动等待用户单独授权。System Invariants 与 UI 权威未改。

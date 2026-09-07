@@ -6,13 +6,13 @@
 
 权限简称固定映射：Admin=`factory_os_core.group_factory_os_admin`，Factory OS Manager=`factory_os_core.group_factory_os_manager`，Sales Manager=`factory_os_orders.group_factory_sales_manager`，Purchase Manager=`factory_os_supply.group_factory_purchase_manager`，Inventory Manager=`factory_os_supply.group_factory_inventory_manager`，Product Manager=`factory_os_core.group_factory_product_manager`，Production Manager=`factory_os_production.group_factory_production_manager`，Quality Manager=`factory_os_quality.group_factory_quality_manager`，Delivery Manager=`factory_os_delivery.group_factory_delivery_manager`，Integration Admin=`factory_os_connector.group_factory_integration_admin`。consumer 中的 `orders/supply/production/quality/delivery/dashboard/connector/mobile/core` 分别指对应 `factory_os_*` addon 内的 service/model；实现文件路径在 Phase 0 model mapping 后冻结。
 
-## capability 分类（ADR-006 Accepted，2026-09-07）
+## capability 分类（ADR-006 Accepted + ADR-007 Accepted，2026-09-07）
 
-配置分两类，**禁止** `config=false 而 engine=true` 的长期自相矛盾状态（"假关闭"）：
+配置分三类，**禁止** `config=false 而 engine=true` 的长期自相矛盾状态（"假关闭"）：
 
-- **Engine-backed capabilities（单调）**：真实行为依赖原生引擎安装，进入对应 Technical Installation Profile 即激活，激活后 `OFF→ON` 支持、`ON→OFF` v0.1 **不支持**（configuration-dependency-graph 的 BLOCK disable）。成员：`inventory_enabled`（stock engine）、`mrp_production_enabled`（mrp engine）、`purchasing_enabled`（requires inventory；进入后单调）、`quality_enabled`（factory_os_quality 薄模型；进入后单调）。
-- **Workflow/UI subordinate capabilities（可 ON ↔ OFF）**：`operations_enabled`、`mobile_warehouse/operator/quality_enabled`、各 inspection 开关与 QC gates、`reports_enabled`、通知类。只影响 Factory OS UI/流程/字段可见性，不触碰引擎；仍受其父项 requires/visible_if 约束。
-- `delivery_enabled` 归类：**业务层能力**（requires inventory、操作 `stock.picking`、可开关），**不**与 Odoo `delivery` addon 安装一一对应。
+- **Engine-backed capabilities（单调）**：真实行为依赖原生引擎安装，进入对应 Technical Installation Profile 即激活，激活后 `OFF→ON` 支持、`ON→OFF` v0.1 **不支持**（configuration-dependency-graph 的 BLOCK disable）。成员：`inventory_enabled`（stock engine）、`mrp_production_enabled`（mrp engine，requires inventory）。
+- **Factory-addon-backed monotonic capabilities**：`quality_enabled`（由 `factory_os_quality` 薄模型提供；requires inventory、**NOT requires mrp**；安装即激活，v0.1 无 addon/profile downgrade）。
+- **Workflow/Business capabilities（可 ON ↔ OFF）**：`purchasing_enabled`（requires inventory；ON↔OFF 受 open-transaction guards；**不宣称 Odoo purchase addon 是否存在**——P1 substrate 常驻 purchase/purchase_stock，ADR-007 §4）、`delivery_enabled`（requires inventory、操作 `stock.picking`、不绑 Odoo `delivery` addon，ADR-006 §E/ADR-007 §6）。另含 workflow/UI 子能力：`operations_enabled`、`mobile_warehouse/operator/quality_enabled`、各 inspection 开关与 QC gates、`reports_enabled`、通知类——只影响 Factory OS UI/流程/字段可见性，不触碰引擎；仍受其父项 requires/visible_if 约束。
 - 不新增第二套 capability truth 字段：engine 存在性由"安装 profile"表达，flag 仍是唯一原子配置值；Phase 1 负责"引擎在而 flag 关"的一致性探测与阻止（实现细节 Phase 1，本文件只定语义）。
 
 ## 工厂与模块
@@ -31,10 +31,10 @@
 | `default_warehouse_id` | `res.company.factory_default_warehouse_id` | Many2one(`stock.warehouse`) | company first active warehouse | same company, active | Admin | inventory required；有活动单据时阻止删除引用 | config audit | supply/production/delivery |
 | `warehouse_ids` / `location_ids` | native `stock.warehouse` / `stock.location` | Native records | one warehouse + standard locations | company consistency; valid hierarchy/usages | Inventory Manager | requires inventory；有库存/移动引用时按 Odoo 阻止删除 | mail tracking | stock.* |
 | `sales_enabled` | `res.company.factory_sales_enabled` | Boolean | true | — | Admin | base capability（order-board 不要求原生引擎） | config audit | orders/menu service |
-| `purchasing_enabled` | `res.company.factory_purchasing_enabled` | Boolean | false | **requires inventory（v0.1 无 Purchase-only）** | Admin | engine-backed monotonic（进入 profile 后 BLOCK disable）；被 PR/来料检验引用；破坏性关闭时阻止 | config audit | supply/menu service |
+| `purchasing_enabled` | `res.company.factory_purchasing_enabled` | Boolean | false | **requires inventory（v0.1 无 Purchase-only）** | Admin | **Workflow/Business（ADR-007 §4）：requires inventory；可 ON↔OFF，subject to open-transaction guards（open PR / open incoming inspection 阻止关闭）；不宣称 Odoo purchase addon 是否安装（P1 substrate 常驻）；Purchasing OFF 时不授予普通用户原生 purchase groups/菜单 | config audit | supply/menu service |
 | `inventory_enabled` | `res.company.factory_inventory_enabled` | Boolean | false | **engine-backed monotonic** | Admin | requires native Inventory profile（stock）；**一旦 ON 永久（BLOCK disable）**；MRP/delivery/tracking requires；flag 不抑制已装引擎 | config audit | stock/menu service |
 | `mrp_production_enabled` | `res.company.factory_mrp_production_enabled` | Boolean | false | **engine-backed monotonic** | Admin | means formal MO/BOM capability; requires inventory + native MRP profile（mrp）+ product/BOM；**一旦 ON 永久（BLOCK disable）**；启用时自动启用基础依赖；MTO+Manufacture 下 SO 确认自动 MO（E/H3）属该 profile 受控行为；workflow 从属项（operations/reporting/mobile）可独立开关 | config audit | production/menu service |
-| `quality_enabled` | `res.company.factory_quality_enabled` | Boolean | false | monotonic（进入 Profile 3 后 BLOCK disable） | Admin | requires inventory so rejects have controlled disposition；由 `factory_os_quality` 薄模型提供（Community 无原生 quality，不引入 Enterprise 依赖）；存在开放检验或隔离库存时阻止关闭 | config audit | quality/menu service |
+| `quality_enabled` | `res.company.factory_quality_enabled` | Boolean | false | **Factory-addon-backed monotonic（ADR-007 §5）：requires inventory；NOT requires mrp；安装激活后 v0.1 无 downgrade** | Admin | requires inventory so rejects have controlled disposition；由 `factory_os_quality` 薄模型提供（Community 无原生 quality，不引入 Enterprise 依赖）；存在开放检验或隔离库存时阻止关闭 | config audit | quality/menu service |
 | `delivery_enabled` | `res.company.factory_delivery_enabled` | Boolean | false | **业务层能力，非引擎型：可 ON ↔ OFF** | Admin | requires inventory，操作 `stock.picking`；**不绑定 Odoo `delivery` addon**（carrier/运费 optional，Post-MVP）；存在未完成发货时阻止关闭 | config audit | delivery/menu service |
 | `reports_enabled` | `res.company.factory_reports_enabled` | Boolean | false | — | Admin | 关闭仅隐藏报表入口 | config audit | dashboard/report menu |
 | `connector_enabled` | `res.company.factory_connector_enabled` | Boolean | false | credentials and endpoint required before activation | Integration Admin | 无；关闭停止新同步，不删除日志/凭据 | config audit | connector.sync_service |

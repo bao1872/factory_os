@@ -19,7 +19,7 @@
 
 这些文件不是参考材料，而是模型约束、设置页、ACL/record rules、服务层校验和自动化测试的验收依据。
 
-渐进采用基线见 [`docs/factory_os/progressive-adoption.md`](docs/factory_os/progressive-adoption.md)：裸安装只启用销售与订单级简单执行；正式 MRP、库存、质量等能力由向导或后续设置开启。**capability/addon 语义（ADR-006 Accepted，2026-09-07）**：业务 preset 与 capability 配置不假装抑制已安装的原生引擎；启用引擎型能力（库存/正式 MRP/采购/质量）执行受控、可审计、**单调**的原生 addon profile 安装（v0.1 无正常 ON→OFF、无原生引擎卸载/降级）；workflow/UI 子能力仍可自由开关；高级 profile 只影响新事务，历史不被回填（Test H）。
+渐进采用基线见 [`docs/factory_os/progressive-adoption.md`](docs/factory_os/progressive-adoption.md)：裸安装只启用销售与订单级简单执行；正式 MRP、库存、质量等能力由向导或后续设置开启。**capability/addon 语义（ADR-006 + ADR-007 Accepted，2026-09-07）**：业务 preset 与 capability 配置不假装抑制已安装的原生引擎；技术架构为能力图（P0→P1 分支 Purchasing/Quality/Delivery，P1→P2 Formal MRP），非单一成熟度梯子；引擎型能力（库存/正式 MRP）执行受控、可审计、**单调**的原生 addon profile 安装（v0.1 无正常 ON→OFF、无原生引擎卸载/降级）；`quality`=Factory-addon-backed monotonic（requires inventory、NOT requires mrp）；`purchasing`/`delivery`=Workflow capability（requires inventory、ON↔OFF、不宣称原生 addon 存在）；workflow/UI 子能力仍可自由开关；高级 profile 只影响新事务，历史不被回填（Test H）。
 
 `factory_os_orders` 必须支持不依赖 BOM、库存和 MO 的订单级简单执行状态、人工进度、预计完成日期、备注与附件。`factory_os_production` 才代表正式 MRP/MO 能力；Phase 0 验证 Odoo 19 Community 原生 MO/BOM 行为后再冻结映射。两者不得创建平行生产订单或虚假库存事务。
 
@@ -129,30 +129,20 @@ addons/
 └── factory_os_connector
 ```
 
-依赖关系：
+依赖关系（**ADR-007 Accepted，2026-09-07**：能力图，非单一成熟度梯子；quality/delivery 是 Inventory 之上的独立扩展，**不**经 production 传递依赖）：
 
 ```text
-                         factory_os_core
-                               │
-             ┌─────────────────┼─────────────────┐
-             ↓                 ↓                 ↓
-     factory_os_orders   factory_os_supply   factory_os_production
-             │                 │                 │
-             └─────────────┬───┴─────────┬──────┘
-                           ↓             ↓
-                  factory_os_quality
-                           │
-                           ↓
-                  factory_os_delivery
-                           │
-                           ↓
-                  factory_os_dashboard
-                           │
-                           ↓
-                  factory_os_connector
+addons/ 结构按 Technical Installation Profile 能力图安装：
+
+P0:  factory_os_core ← factory_os_orders          （core + orders，depends: core+[sale]）
+P1:  + factory_os_supply                          （depends: core+orders+stock+purchase+sale_stock+purchase_stock；无 mrp）
+      ├── 可叠加 factory_os_quality               （depends: core+orders+stock；无 mrp/production/supply/purchase）
+      └── 可叠加 factory_os_delivery              （depends: core+orders+stock；无 production/quality/mrp/delivery）
+P2:  + factory_os_production                      （depends: core+orders+supply+stock+mrp+sale_mrp+purchase_mrp）
+Dashboard（core+orders，P0 起可用）· Connector（core+orders 最低，最后开发）
 ```
 
-实际 manifest 依赖不需要机械复制这个图，而要保持最小依赖关系。
+精确 manifest 依赖（`__manifest__.py` 目标，**Development Authority，禁止重新设计**）见 **ADR-007 §3** 与 [addon-dependency-map.md §2](docs/factory_os/addon-dependency-map.md)。Quality/Delivery/Dashboard 对更高模块的可选集成一律走 `registry` 模型存在性守卫（`"mrp.production" in self.env.registry` 等），**不静态依赖**。每个 profile 的依赖闭包不得含 forbidden 业务引擎（PROFILE_CONTRACTS，ADR-007 §8）。
 
 ---
 
@@ -320,6 +310,8 @@ sale
 ```
 
 > **ADR-006 Accepted（2026-09-07）**：`factory_os_orders` **不依赖 `sale_stock`**——Safe Minimal（Profile 0，仅装 sale）必须是真实可存在的安装面（Test G）。库存/物料视角（缺料、available、incoming、material readiness、stock-related order health）由 `factory_os_supply` 在对应原生引擎可用时扩展 `sale.order`；发货/追溯视角由 `factory_os_delivery` 扩展 `stock.picking`。保持 8-addon 架构，不新增桥接 addon。
+>
+> **ADR-007 Accepted（2026-09-07，精确目标）**：`__manifest__.py` deps = `factory_os_core` + `sale`。**禁止出现** `sale_stock` / `stock` / `purchase` / `mrp`。
 
 ## 核心模型
 
@@ -517,17 +509,19 @@ Material Requirement
 ```python
 factory_os_core
 factory_os_orders
-purchase
-purchase_stock
 stock
-mrp
+purchase
+sale_stock
+purchase_stock
 ```
+
+> **ADR-007 Accepted（2026-09-07）**：此清单为 `__manifest__.py` **精确目标**（含显式 `sale_stock`/`purchase_stock` bridge——非多装引擎，是锁定 SO↔move、PO↔move/picking、incoming/delivery movement 的 bridge API 契约；P1 substrate 本含 sale+stock+purchase，Odoo 自动装桥，显式声明只定加载顺序）。**严格禁止 `mrp`/`sale_mrp`/`purchase_mrp`**——本模块属 Inventory substrate（Profile 1），MRP 前无 BOM explosion / mrp.production / 制造物料需求；任何需 MRP 的能力到 Phase 4（`factory_os_production`）才可用。原计划依赖中的 `mrp`（dependency-closure STOP）已移除。
 
 ---
 
 # 9. Purchasing
 
-> **v0.1 约束（ADR-006 Accepted）**：`purchasing_enabled requires inventory_enabled`——Factory OS **无 Purchase-only 模式**（Deferred/Post-MVP）。采购是"物料需求→缺料→PO→收货→库存→生产"闭环的一环；Odoo 19 的 `purchase` 本身可不依赖 stock（depends=['account']）仅是原生现实，不作为 Factory OS v0.1 形态暴露。`factory_os_supply` 依赖含 `purchase_stock`/`stock`（本模块 dependencies 已满足）。
+> **v0.1 约束（ADR-006 + ADR-007 Accepted）**：`purchasing_enabled` 是 **Workflow/Business capability**——`requires inventory_enabled`（**无 Purchase-only 模式**，Deferred/Post-MVP）、可 ON↔OFF（受 open-transaction guards）、**不宣称 Odoo purchase addon 是否安装**。`factory_os_supply` manifest 显式依赖 `purchase`/`purchase_stock`（本模块 Dependencies 已含），即 Inventory Substrate 库物理上 purchase substrate 常驻——这是**有意契约**：Purchase addon 在位 ≠ Factory OS Purchasing workflow 已启用（普通 PO 需显式动作；自动 RFQ/MO 只由 MTO/Buy route 触发，而 MTO route 分配属 Profile 2 受控）。Purchasing OFF 时普通用户不得获得原生 purchase groups/菜单（Phase 1 安全收紧）。采购是"物料需求→缺料→PO→收货→库存→生产"闭环的一环；Odoo 19 的 `purchase` 本身可不依赖 stock（depends=['account']）仅是原生现实，不作为 Factory OS v0.1 形态暴露。
 
 直接扩展：
 
@@ -677,9 +671,13 @@ Odoo stock ledger 是唯一库存事实源：
 factory_os_core
 factory_os_orders
 factory_os_supply
-mrp
 stock
+mrp
+sale_mrp
+purchase_mrp
 ```
+
+> **ADR-007 Accepted（2026-09-07）**：`factory_os_production` 是 MRP（Profile 2）首次进入 Factory OS dependency closure 的模块。显式声明 `sale_mrp`/`purchase_mrp` 桥（MTO 自动 MO/RFQ 行为契约）。Shortage 保持 **DERIVED**（原生真相派生，ADR-002/003 不变），不建第二本物料需求账。
 
 ---
 
@@ -886,6 +884,16 @@ factory.quality.ncr
 
 不要复制完整 Odoo Quality。
 
+## Dependencies（精确目标，ADR-007 Accepted，2026-09-07）
+
+```python
+factory_os_core
+factory_os_orders
+stock
+```
+
+**不依赖** `factory_os_supply` / `factory_os_production` / `mrp` / `purchase`。Incoming/Final inspection 只需要真实库存/批次/移动。Process inspection（In Process）仅当 `"mrp.production" in self.env.registry` 时条件开放对应集成——**不能为可选 Process QC 把所有 Quality 工厂强制升级成 MRP 工厂**（Quality = Inventory 之上独立扩展，非 MRP 必经层）。
+
 ---
 
 # 21. Inspection
@@ -972,16 +980,14 @@ Traceability
 ## Dependencies
 
 ```python
+factory_os_core
 factory_os_orders
-factory_os_production
-factory_os_quality
 stock
-delivery
 ```
 
-如果当前环境没有 `delivery` addon，则以 `stock` 为最低依赖。
+> **ADR-007 Accepted（2026-09-07）**：此清单为 `__manifest__.py` **精确目标**。真相对象 = `stock.picking`。**严格禁止硬依赖** `factory_os_production` / `factory_os_quality` / `mrp` / `delivery`（原计划含 production/quality/delivery，dependency-closure STOP 已移除）。Quality Gate / Production 状态若存在 → 条件读取（`"factory.quality.inspection" in self.env.registry` / `"mrp.production" in self.env.registry`），不存在 → Delivery 仍独立工作。Odoo `delivery` addon（carrier/运费）optional / Post-MVP。
 
-> **ADR-006 Accepted（2026-09-07）**：Factory OS Delivery 本质操作 `stock.picking`（Inventory profile 一开原生 delivery picking 即存在）；`delivery_enabled` 是业务层能力（requires inventory、可 ON↔OFF），**不**与 Odoo `delivery` addon 一一绑定。Odoo `delivery`/carrier 仅在需要承运商/运费功能时安装（optional，Post-MVP）。
+> **ADR-006 Accepted（2026-09-07，维持）**：Factory OS Delivery 本质操作 `stock.picking`（Inventory profile 一开原生 delivery picking 即存在）；`delivery_enabled` 是 Workflow/Business 能力（requires inventory、可 ON↔OFF），**不**与 Odoo `delivery` addon 一一绑定。
 
 ---
 
@@ -1107,12 +1113,11 @@ Shipment
 ## Dependencies
 
 ```python
+factory_os_core
 factory_os_orders
-factory_os_supply
-factory_os_production
-factory_os_quality
-factory_os_delivery
 ```
+
+> **ADR-007 Accepted（2026-09-07）**：此清单为 `__manifest__.py` **精确目标**。**不得依赖** `factory_os_supply` / `factory_os_production` / `factory_os_quality` / `factory_os_delivery` / `stock` / `mrp`（原计划依赖全部内部 addon，dependency-closure STOP 已移除）——否则 Dashboard 本身成为"安装所有模块"的木马。可选瓦片走 registry 守卫（`"stock.picking" in self.env.registry` / `"mrp.production" in self.env.registry` / `"factory.quality.inspection" in self.env.registry`）；base code 不得静态引用可选模块模型，不建 fake dashboard 缓存/真相表。
 
 ---
 
@@ -1462,6 +1467,8 @@ docs/factory_os/model-mapping.md
 
 # 41. Phase 1 — Core 验收 Gate
 
+> **Phase 1 属主（ADR-007 Accepted，2026-09-07 锁定）**：Phase 1 仅限 `factory_os_core`、security foundation、roles/groups、configuration infrastructure、**profile installer/detector foundation**、monotonic engine checks、audit foundation、initial setup wizard foundation。**NO** Supply 业务实现；**NO** MRP 业务实现；**NO** MTO product 业务实现（MTO route 分配校验属 Phase 4）。
+
 必须完成：
 
 | 验收项 | 要求 |
@@ -1529,40 +1536,57 @@ Role access
 
 ---
 
-# 43. Phase 3 — Supply Gate
+# 43. Phase 3 — Supply Gate（Inventory & Purchasing，**无 MRP**）
 
-选择一个真实产品 BOM。
+> **Phase 3/4 边界（ADR-007 Accepted，2026-09-07 锁定）**：Phase 3 实现 `factory_os_supply`（无 mrp 依赖），只回答「我现在有多少 / 在途多少 / 收了多少 / 哪些库存被占用」；**Phase 3 不得要求** `mrp.bom` / `mrp.production` / BOM explosion / BOM-driven raw-material demand / MTO / Manufacture route——"生产这个订单究竟缺多少原材料"需要 BOM，属 Phase 4。
 
-验证：
+验证（真实流程，无需 BOM）：
+
+```text
+PO
+↓
+Receipt（Incoming）
+↓
+Available Inventory（Quant / move）
+↓
+Reservation / Availability
+↓
+Reorder / Inventory Count / Scrap（主数据+操作）
+```
+
+必须通过：
+
+```text
+Warehouse / Location / Quant 正确
+PO → Receipt → stock move → quant 链正确
+Available / Reserved 语义正确（stock.quant truth）
+Lot/Serial 收发正确
+Purchasing → Inventory 依赖（v0.1 无 Purchase-only）
+security（普通用户不获原生 purchase groups/菜单，除非 purchasing workflow 启用）
+```
+
+> 说明：原 BOM-driven Material Demand → Shortage → PO E2E 场景（需要 BOM，属制造缺料语义）移至 **Phase 4** 验证。Phase 3 的 End-to-End 是「收货 → 库存 → 可用」。
+
+---
+
+# 44. Phase 4 — Production Gate（Formal MRP + BOM-driven Supply）
+
+> **Phase 4 属主（ADR-007 Accepted，2026-09-07 锁定）**：本 Phase 实现 `factory_os_production`（依赖含 mrp/sale_mrp/purchase_mrp），Formal MRP 才进入 Factory OS dependency closure。Ownership：BOM / BOM Explosion / Manufacturing Demand / Available / Reserved / Incoming / Shortage / MO / Work Order / MTO / Component consumption / Finished quantity / Finished Lot。Material Shortage 保持 **DERIVED**（原生真相派生，不建第二本物料需求账）。
+
+验证（延续 Phase 3 的同一库存基础）：
 
 ```text
 SO = 1000 pcs
 ↓
 BOM Explosion
 ↓
-Material Demand
+Manufacturing Demand
 ↓
-Available Inventory
+Available Inventory（Available − Reserved − Incoming = Shortage）
 ↓
-Shortage
+Shortage → PO（BOM-driven 缺料在此 Phase 才真实成立）
 ↓
-Purchase Order
-↓
-Receipt
-↓
-Available Material
-```
-
-这是整个系统第一个真正 End-to-End 场景。
-
----
-
-# 44. Phase 4 — Production Gate
-
-继续同一个订单：
-
-```text
-Material Ready
+Receipt → Available Material
 ↓
 Create MO
 ↓
@@ -1582,6 +1606,7 @@ Finished Lot
 组件消耗正确
 成品库存正确
 Lot正确
+MTO：SO 确认自动建 MO/RFQ（Test E/H3）属本 profile 受控行为；MTO route 分配按 profile 校验
 ```
 
 不能为了 UI 简单破坏 Odoo stock/mrp transaction。

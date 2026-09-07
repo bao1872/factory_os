@@ -1,9 +1,9 @@
 # ADR-006 Capability Engine vs Native Addon Installation
 
-Status: **Accepted**
+Status: **Accepted**（2026-09-07；部分被 ADR-007 supersede，见 Follow-up）
 Date: 2026-09-07（Proposed → Accepted，用户裁决 Accept with amendments）
 Owner: 用户 Gate 裁决（Phase 0 STOP resolution）
-Follow-up（2026-09-07，dependency-closure STOP）：本决策的安装 profile 与 8-addon manifest 依赖闭包存在冲突（`factory_os_supply`→`mrp` 使 Profile 1 强制装 MRP；delivery/dashboard 计划依赖偏高；purchasing 单调分类与 supply→purchase 的 Inventory-only substrate 冲突）。修订提议见 **ADR-007（Status: Proposed，未采纳）**；裁决前本决策仍为有效权威，affected evidence docs 仅加 BLOCKED 标记。
+Follow-up（2026-09-07，dependency-closure STOP → **ADR-007 Accepted**）：本决策的安装 profile 与 8-addon manifest 依赖闭包冲突（`factory_os_supply`→`mrp` 使 Profile 1 强制装 MRP；delivery/dashboard 计划依赖偏高；purchasing 单调分类与 supply→purchase 的 Inventory-only substrate 冲突）。**ADR-007（Status: Accepted）** 已裁决：supersede 本决策的 §A（purchasing engine-backed → workflow；quality 补 factory-addon-backed/不要求 MRP）、§D Profile 1（purchase substrate 常驻、显式 sale_stock/purchase_stock）与 Profile 3 表述（quality 作 P1 上独立扩展）；§B 8-addon、§C purchasing→inventory、§E delivery 业务层、§F Business Preset≠Technical Profile 及 inventory/mrp 引擎型单调维持不变。本决策其余部分仍为有效权威。
 
 ## Context
 
@@ -42,6 +42,7 @@ Phase 0 出口评审发现两条 Hard STOP（出口状态 BLOCKED，见 native-b
 - **Workflow/UI subordinate capabilities**（`operations`、`mobile_warehouse/operator/quality`、各 inspection 类型、QC gates、`reports`、notifications 等）：仍可正常 `ON ↔ OFF`，只影响 Factory OS UI/流程/字段，不触碰引擎。
 - 若原生引擎在 Factory OS 管理之外被安装：Phase 1 一致性检查必须探测现实，阻止 Factory OS 配置宣称矛盾状态（如引擎在而 flag 关）。检测/机制 Phase 1 实现，本任务不实现。
 - `purchasing_enabled`、`quality_enabled`：进入其 profile（安装对应引擎/工厂 addon）后同样**单调**（见 §D Profile 1/3）；`delivery_enabled` 属业务层能力（§E），不单调、可 `ON ↔ OFF`。
+  - **（ADR-007 Accepted supersede）** `purchasing_enabled` 改 **Workflow/Business**（requires inventory、ON↔OFF、不宣称 Odoo purchase addon 存在——P1 substrate 常驻 purchase/purchase_stock）；`quality_enabled` 明确为 **Factory-addon-backed monotonic**（requires inventory、**NOT requires mrp**；Process inspection 才 requires MRP）。详见 ADR-007 §4/§5。
 
 ### B. 保持 8-addon 架构（不新增 `factory_os_orders_stock`）
 
@@ -63,9 +64,9 @@ Phase 0 出口评审发现两条 Hard STOP（出口状态 BLOCKED，见 native-b
 | Profile | 原生最小安装（+Odoo 自动桥） | Factory OS addon | capability | 原生契约证据 |
 |---|---|---|---|---|
 | 0 — Order Board / Safe Minimal | `sale` | `factory_os_core` + `factory_os_orders` | Customer/Product/SO/Committed Date/Manual Execution/Health/Chatter；**无 stock/purchase/mrp/QC/delivery 事务** | Test G |
-| 1 — Inventory & Purchasing | + `stock`（+ `purchase`，当选中采购）+ 自动桥 `sale_stock`/`purchase_stock`/`stock_account` 等 | + `factory_os_supply` | Inventory=permanently enabled；Purchasing=enabled if selected（requires inventory） | Test A/B/H2 |
+| 1 — Inventory & Purchasing | + `stock` + `purchase`（substrate **常驻**，非"当选中采购"——`factory_os_supply` manifest 显式依赖 purchase/purchase_stock）+ 自动桥 `sale_stock`/`purchase_stock`/`stock_account` 等 | + `factory_os_supply` | `inventory`=permanently enabled；`purchasing`=Workflow capability（requires inventory、可 ON↔OFF，**ADR-007 §4**）；二者物理面见 ADR-007 §3.3 | Test A/B/H2 |
 | 2 — Formal Manufacturing | + `mrp` + 自动桥 `sale_mrp`/`purchase_mrp`/`mrp_account` | + `factory_os_production` | `mrp_production_enabled`=permanently true；MTO/Manufacture route 开始有真实原生效果，按本 profile 受控 | Test E/H3 |
-| 3 — Quality | + `factory_os_quality`（薄模型，非原生 quality） | + `factory_os_quality` | 保持 `factory.quality.inspection`/`factory.quality.ncr`；requires Inventory（FAIL 需受控库存处置） | model-mapping #14/#15 |
+| 3 — Quality | + `factory_os_quality`（薄模型，非原生 quality） | + `factory_os_quality` | `quality`（requires inventory，**NOT requires MRP**，Factory-addon-backed monotonic，**ADR-007 §3.5/§5**）单调 | model-mapping #14/#15 |
 
 - 升级 = **受控、可审计、单调的引擎安装**（对既有 profile 只增不减）。
 - **原生引擎卸载/降级 v0.1 不支持**（Odoo 对存在数据引用的模块拒绝卸载；不承诺破坏性卸载）。降级路径 = 新建库重放（ADR-001 一厂一库），非常规运维。

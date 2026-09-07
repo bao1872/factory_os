@@ -36,8 +36,8 @@
 | [ADR-003](ADR-003-simple-execution-vs-formal-mrp.md) | 简单订单执行与正式 MRP 分离 | Accepted | `sale.order.factory_*` 表达简单执行；正式 MO/BOM 属 `factory_os_production`；两者不混同 |
 | [ADR-004](ADR-004-progressive-adoption.md) | 渐进采用：不伪造历史、不建平行模型 | Accepted | 高级能力只约束新动作；历史记录不重写、不伪造 |
 | [ADR-005](ADR-005-no-offline-transactions-v0.1.md) | v0.1 无离线业务事务 | Accepted | 网络失败仅保留当前页输入、显示失败、手动 Retry；无离线队列/自动重放 |
-| [ADR-006](ADR-006-capability-engine-and-addon-installation.md) | Capability 引擎 vs 原生 addon 安装 | **Accepted** | 能力等级 ↔ 原生 addon 安装 profile 绑定、单调升级（引擎型 capability 不允许 ON→OFF）；保持 8-addon（orders 去 sale_stock）；v0.1 purchasing→inventory；由 Phase 0 STOP A/B 裁决触发，2026-09-07 Accepted |
-| [ADR-007](ADR-007-profile-compatible-addon-dependencies.md) | Profile-compatible addon dependencies | **Proposed** | 8-addon manifest 依赖闭包须 ≤ 所属 Technical Profile 引擎面（supply 去 mrp、delivery 去 production/quality、dashboard 收敛）；purchasing_enabled 改 Workflow capability（substrate 常驻）；Phase 3=Supply&Inventory、Phase 4=Formal MRP；由 Phase 0 dependency-closure STOP 触发，2026-09-07 Proposed，待用户裁决 |
+| [ADR-006](ADR-006-capability-engine-and-addon-installation.md) | Capability 引擎 vs 原生 addon 安装 | **Accepted** | 能力等级 ↔ 原生 addon 安装 profile 绑定、单调升级（引擎型 capability 不允许 ON→OFF）；保持 8-addon（orders 去 sale_stock）；v0.1 purchasing→inventory；由 Phase 0 STOP A/B 裁决触发，2026-09-07 Accepted（§A purchasing/quality 分类与 §D Profile 1/3 表述被 [ADR-007](ADR-007-profile-compatible-addon-dependencies.md) supersede） |
+| [ADR-007](ADR-007-profile-compatible-addon-dependencies.md) | Profile-compatible addon dependencies & capability classification | **Accepted** | 8-addon manifest 依赖闭包 ≤ 所属 Technical Profile 引擎面（supply=core+orders+stock+purchase+sale_stock+purchase_stock 无 mrp；quality=core+orders+stock 独立于 MRP；delivery=core+orders+stock；dashboard=core+orders）；能力图为 P0→P1 分支 P/Q/D、P1→P2；purchasing 改 Workflow/Business（substrate 常驻）、quality=Factory-addon-backed monotonic（NOT requires mrp）；Phase 3=Inventory & Purchasing（无 BOM）、Phase 4=Formal MRP；PROFILE_CONTRACTS 永久闭包验证；由 Phase 0 dependency-closure STOP 触发，2026-09-07 Proposed → Accepted |
 
 ## 维护约定
 

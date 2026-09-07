@@ -1,6 +1,6 @@
 # Factory OS Progressive Adoption v1.1
 
-状态：**Product and Development Authority**。v1.1（2026-09-07，ADR-006 **Accepted**）修订：capability/addon 语义改为"受控单调引擎安装"、新增 Technical Installation Profiles、`purchasing→inventory`（v1.0 L10 绝对规则按 [ADR-006 Supersedes](../decisions/ADR-006-capability-engine-and-addon-installation.md) 范围失效）。目标用户是 5–20 人、流程尚未标准化的小作坊和轻管理工厂。Factory OS 必须允许其从最小订单看板开始，在不重写历史、不迁移到平行模型的前提下逐步增加采购、库存、正式 MRP、质量和追溯。
+状态：**Product and Development Authority**。v1.2（2026-09-07，**ADR-007 Accepted**）修订：技术架构按"能力图"表达（P0→P1 分支 Purchasing/Quality/Delivery，P1→P2 Formal MRP），非单一 0→3 成熟度梯子；`purchasing_enabled` 改 Workflow/Business（P1 purchase substrate 常驻）；`quality_enabled` = Factory-addon-backed monotonic（requires inventory、**NOT requires mrp**）。v1.1（ADR-006 Accepted）保留：capability/addon 语义 = 受控单调引擎安装、Technical Installation Profiles、`purchasing→inventory`（v1.0 L10 绝对规则按 [ADR-006 Supersedes](../decisions/ADR-006-capability-engine-and-addon-installation.md) 范围失效）。目标用户是 5–20 人、流程尚未标准化的小作坊和轻管理工厂。Factory OS 必须允许其从最小订单看板开始，在不重写历史、不迁移到平行模型的前提下逐步增加采购、库存、正式 MRP、质量和追溯。
 
 ## 永久原则
 
@@ -8,26 +8,55 @@
 - 裸安装为 Safe Minimal；Product、Customer、Sales Order、订单级执行状态、Committed Delivery Date、Chatter/Attachments 始终可用。
 - 高级能力启用后只对适用的新动作增加 Just-in-Time Gate；不得要求重建旧订单、伪造历史库存或批量创建虚假 MO/QC。
 - capability flags 与业务 preset **不假装抑制已安装的原生 Odoo 引擎**；启用引擎型能力可能执行一次受控、可审计、单调的所需原生 addon profile 安装（ADR-006 **Accepted**）。
-- 引擎型能力（Inventory、Formal MRP，及进入对应 profile 的 Purchasing、Quality）一旦激活即**单调**：v0.1 不提供正常 `ON → OFF`，不宣称任何 Boolean 能抑制原生引擎。workflow/UI 子能力（operations、移动端、检验类型、QC gates、reports、notifications）仍可自由 `ON ↔ OFF`。
+- 引擎型能力（Inventory、Formal MRP）一旦激活即**单调**：v0.1 不提供正常 `ON → OFF`，不宣称任何 Boolean 能抑制原生引擎。`quality_enabled` 为 **Factory-addon-backed monotonic**（requires inventory，**NOT requires mrp**；安装 `factory_os_quality` 即激活，v0.1 无 downgrade）。`purchasing_enabled`/`delivery_enabled` 为 **Workflow/Business**（requires inventory、可 `ON ↔ OFF`，ADR-007 §4/§6）。workflow/UI 子能力（operations、移动端、检验类型、QC gates、reports、notifications）仍可自由 `ON ↔ OFF`。
 - 简单订单执行属于 `factory_os_orders`；正式 MO/BOM 属于 `factory_os_production`，两者不得混为同一业务对象。
 
-## Technical Installation Profiles（ADR-006 Accepted，2026-09-07）
+## Technical Installation Profiles
 
-> Business Preset ≠ Technical Installation Profile。用户只看到 preset（见下 Quick Start）；向导把 `Business Preset → Installation Profile → Atomic Configuration → Role assignment` 逐级翻译。本表是**技术安装面**，不向普通工厂用户暴露 "install stock/mrp addon" 术语。Test G/H/E 是原生契约证据（native-behavior-audit §8）。
+> 权威：ADR-006 + ADR-007（均 Accepted，2026-09-07）。
 
-| Profile | 原生最小安装（+Odoo 自动桥） | Factory OS addon | capability（单调性） | 无库存/无 MRP 事务承诺 |
+> Business Preset ≠ Technical Installation Profile。用户只看到 preset（见下 Quick Start）；向导把 `Business Preset → Installation Profile → Atomic Configuration → Role assignment` 逐级翻译。本表是**技术安装面**，不向普通工厂用户暴露 "install stock/mrp addon" 术语。Test G/H/E 是原生契约证据（native-behavior-audit §8）。**能力图（ADR-007 §1/§2）**：不是单一 P0→P1→P2→P3 梯子，而是——
+
+```text
+P0 — Base / Orders
+         │
+         ▼
+P1 — Inventory Substrate
+    │         │          │
+    ▼         ▼          ▼
+Purchasing  Quality   Delivery
+workflow    Extension  workflow
+(ON<->OFF)  (addon,   (ON<->OFF,
+            requires   requires P1,
+            P1, NOT    NOT P2/Q)
+            P2)
+    │
+    ▼
+P2 — Formal MRP
+```
+
+| Profile | 原生最小安装（+Odoo 自动桥） | Factory OS addon | capability（分类/单调性） | 无库存/无 MRP 事务承诺 |
 |---|---|---:|---|---|
 | 0 Order Board / Safe Minimal | `sale` | core + orders | 基础订单执行（不单调） | **成立**（Test G：54 模块，引擎模型不存在，Goods SO 零物流） |
-| 1 Inventory & Purchasing | + `stock`（+ `purchase` 当选采购）+ `sale_stock`/`purchase_stock`/`stock_account` 等自动桥 | + supply | `inventory` permanently；`purchasing`=if selected（requires inventory）；二者进入后单调 | 订单看板承诺在此 profile **终止**（A/B/H2） |
-| 2 Formal Manufacturing | + `mrp` + `sale_mrp`/`purchase_mrp`/`mrp_account` 自动桥 | + production | `mrp_production` permanently true（单调）；MTO/Manufacture route 受控可用 | MO/RFQ 在 MTO 下 SO 确认即自动产生（E/H3），属正式生产 profile 受控能力 |
-| 3 Quality | + factory_os_quality（薄模型，非原生 quality） | + quality | `quality`（requires inventory）单调 | FAIL 必须有受控库存处置 |
+| 1 Inventory Substrate | + `stock` + `purchase`（**substrate 常驻**——supply manifest 显式依赖 purchase/purchase_stock）+ 自动桥 `sale_stock`/`purchase_stock`/`stock_account` | + `factory_os_supply` | `inventory`=ENGINE-BACKED **单调**；`purchasing`=WORKFLOW（requires inventory，ON↔OFF，ADR-007 §4）；MRP 前**无 BOM/MRP 语义** | 订单看板承诺在此 profile **终止**（A/B/H2） |
+| 2 Formal Manufacturing | + `mrp` + 自动桥 `sale_mrp`/`purchase_mrp`/`mrp_account` | + `factory_os_production`（依赖含 supply/stock/mrp/sale_mrp/purchase_mrp，ADR-007 §3.4） | `mrp_production`=ENGINE-BACKED 单调；MTO/Manufacture route 受控可用 | MO/RFQ 在 MTO 下 SO 确认即自动产生（E/H3），属正式生产 profile 受控能力 |
+
+**独立扩展（叠加在 P1 substrate 或更高之上，不构成新增 profile 层级）**：
+
+| Extension | manifest 依赖（ADR-007 §3 精确合同） | 硬依赖禁项 | capability | 语义 |
+|---|---|---:|---|---|
+| Quality | core + orders + `stock` | `mrp` / `factory_os_production` / `factory_os_supply` / `purchase` / `quality*` | `quality`=FACTORY-ADDON-BACKED monotonic；requires inventory、**NOT requires mrp** | 两薄模型 inspection/ncr；Incoming/Final 无 MRP 可用；Process 仅 `mrp.production` 在 registry 时条件开放（§3.5） |
+| Delivery | core + orders + `stock` | `factory_os_production` / `factory_os_quality` / `mrp` / `delivery` | `delivery`=WORKFLOW（requires inventory，ON↔OFF） | 真相 `stock.picking`；production/quality gate 条件读取（§3.6） |
+| Dashboard | core + orders | 其余五个业务 addon / `stock` / `mrp` | 从 P0 起可用 | 可选瓦片 registry 守卫（§3.7） |
+| Connector | core + orders（最低） | Supply/MRP/Quality/Delivery 静态依赖 | 兼容全部 | Phase 8 仅加纯技术依赖（§3.8） |
 
 约束（v0.1）：
 
-- `purchasing_enabled requires inventory_enabled` —— **无 Purchase-only 模式**（Deferred/Post-MVP）。Inventory ON + Purchasing OFF 允许；反向不允许。
+- `purchasing_enabled requires inventory_enabled` —— **无 Purchase-only 模式**（Deferred/Post-MVP）。Inventory ON + Purchasing OFF 允许；反向不允许。Purchasing OFF 时普通 Factory OS 用户不得获得原生 purchase groups/菜单。
 - 升级 = 受控、可审计、单调的引擎安装；**原生引擎卸载/降级 v0.1 不支持**（降级=新建库重放，见 ADR-001）。
 - `delivery_enabled` = Factory OS 业务/workflow capability：requires inventory、操作 `stock.picking`、可 `ON ↔ OFF`；**不绑定 Odoo `delivery` addon**（carrier/运费能力 optional，Post-MVP）。
 - 引擎若在 Factory OS 管理之外被安装：Phase 1 一致性检查探测现实并阻止配置宣称矛盾状态（引擎在而 flag 关）。
+- **永久闭包检查（ADR-007 §8）**：每个 profile 的 direct+transitive+auto_install 闭包不得含 forbidden 业务引擎（PROFILE_CONTRACTS 为规范化契约）；任何 manifest 依赖变更强制复检，违反即 BLOCK。
 
 ## Safe Minimal raw defaults（Atomic Configuration 默认值）
 
@@ -76,7 +105,7 @@
 
 ## 四个 Quick Start preset
 
-Preset 只是向导答案的快捷填充；确认保存时仅写入下表原子配置，运行时不存在 preset 字段。下表是 **Business UX**；向导按下表选中 preset 后先翻译成 [Technical Installation Profile](#technical-installation-profilesadr-006-accepted2026-09-07)（安装对应原生引擎与 Factory OS addon），再写原子配置与角色。质量 preset 一律隐含 `inventory=true`（FAIL 需受控处置）；"订单 + 进销存" 及更高 preset 中 `purchasing` 与 `inventory` 同开（v0.1 无 Purchase-only）。
+Preset 只是向导答案的快捷填充；确认保存时仅写入下表原子配置，运行时不存在 preset 字段。下表是 **Business UX**；向导按下表选中 preset 后先翻译成 [Technical Installation Profile](#technical-installation-profiles)（安装对应原生引擎与 Factory OS addon），再写原子配置与角色。质量 preset 一律隐含 `inventory=true`（FAIL 需受控处置）；"订单 + 进销存" 及更高 preset 中 `purchasing` 与 `inventory` 同开（v0.1 无 Purchase-only）。
 
 | Atomic setting | 订单看板 | 订单 + 进销存 | 标准生产 | 质量追溯 |
 |---|---:|---:|---:|---:|
