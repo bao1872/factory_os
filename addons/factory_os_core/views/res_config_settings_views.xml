@@ -1,0 +1,86 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <record id="res_config_settings_view_form_factory_os"
+            model="ir.ui.view">
+        <field name="name">
+            res.config.settings.view.form.factory.os
+        </field>
+        <field name="model">res.config.settings</field>
+        <field name="inherit_id"
+               ref="base.res_config_settings_view_form"/>
+        <field name="arch" type="xml">
+
+            <xpath expr="//form" position="inside">
+
+                <app string="Factory OS"
+                     name="factory_os_core"
+                     groups="factory_os_core.group_factory_os_admin">
+
+                    <block title="System Status">
+
+                        <setting string="Order Core"
+                                 help="Customer order capability is permanent.">
+                            <field name="factory_sales_enabled"
+                                   readonly="1"/>
+                        </setting>
+
+                        <setting string="Inventory">
+                            <field name="factory_inventory_enabled"
+                                   readonly="1"/>
+                        </setting>
+
+                        <setting string="Formal MRP">
+                            <field name="factory_mrp_production_enabled"
+                                   readonly="1"/>
+                        </setting>
+
+                        <setting string="Quality">
+                            <field name="factory_quality_enabled"
+                                   readonly="1"/>
+                        </setting>
+
+                        <setting string="Setup Status">
+                            <field name="factory_setup_complete"
+                                   readonly="1"/>
+                        </setting>
+
+                        <setting>
+                            <button name="action_factory_check_profile_consistency"
+                                    type="object"
+                                    string="Check Profile Consistency"
+                                    class="btn-secondary"/>
+                        </setting>
+
+                    </block>
+
+                    <block title="Workflow Capabilities">
+
+                        <setting string="Purchasing"
+                                 help="Requires Inventory.">
+                            <field name="factory_purchasing_enabled"/>
+                        </setting>
+
+                        <setting string="Delivery"
+                                 help="Requires Inventory.">
+                            <field name="factory_delivery_enabled"/>
+                        </setting>
+
+                        <setting string="Reports">
+                            <field name="factory_reports_enabled"/>
+                        </setting>
+
+                        <setting string="Central Connector">
+                            <field name="factory_connector_enabled"/>
+                        </setting>
+
+                    </block>
+
+                </app>
+
+            </xpath>
+
+        </field>
+    </record>
+
+</odoo>

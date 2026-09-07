@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <menuitem id="menu_factory_os_root"
+              name="Factory OS"
+              sequence="30"
+              groups="factory_os_core.group_factory_os_user"/>
+
+    <record id="action_factory_os_settings"
+            model="ir.actions.act_window">
+        <field name="name">Factory OS Settings</field>
+        <field name="res_model">res.config.settings</field>
+        <field name="view_mode">form</field>
+        <field name="target">current</field>
+        <field name="context">
+            {'module': 'factory_os_core'}
+        </field>
+    </record>
+
+    <menuitem id="menu_factory_os_settings"
+              name="Settings"
+              parent="menu_factory_os_root"
+              action="action_factory_os_settings"
+              sequence="100"
+              groups="factory_os_core.group_factory_os_admin"/>
+
+</odoo>
