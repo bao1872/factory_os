@@ -4,7 +4,7 @@
 
 约定：公司级字段存于 `res.company`，`res.config.settings` 只提供同名 related proxy（`readonly=False`）；产品级字段存于 `product.template`；角色和用户范围使用 Odoo group/record rule，不复制为布尔偏好。所有公司级配置由 `factory_os_core.group_factory_os_admin` 或表中更窄的经理组编辑，并写入 `factory.config.audit`。`selection` 的左侧英文值为数据库值，右侧中文仅为 UI 标签。
 
-权限简称固定映射：Admin=`factory_os_core.group_factory_os_admin`，Factory OS Manager=`factory_os_core.group_factory_os_manager`，Sales Manager=`factory_os_orders.group_factory_sales_manager`，Purchase Manager=`factory_os_supply.group_factory_purchase_manager`，Inventory Manager=`factory_os_supply.group_factory_inventory_manager`，Product Manager=`factory_os_core.group_factory_product_manager`，Production Manager=`factory_os_production.group_factory_production_manager`，Quality Manager=`factory_os_quality.group_factory_quality_manager`，Delivery Manager=`factory_os_delivery.group_factory_delivery_manager`，Integration Admin=`factory_os_connector.group_factory_integration_admin`。consumer 中的 `orders/supply/production/quality/delivery/dashboard/connector/mobile/core` 分别指对应 `factory_os_*` addon 内的 service/model；实现文件路径在 Phase 0 model mapping 后冻结。
+权限简称固定映射（角色身份归 core，ADR-007 §10；Phase 1A 对齐）：Admin=`factory_os_core.group_factory_os_admin`，Factory OS Manager=`factory_os_core.group_factory_os_manager`，Sales Manager=`factory_os_core.group_factory_sales_manager`，Purchase Manager=`factory_os_core.group_factory_purchase_manager`，Inventory Manager=`factory_os_core.group_factory_inventory_manager`，Product Manager=`factory_os_core.group_factory_product_manager`，Production Manager=`factory_os_core.group_factory_production_manager`，Quality Manager=`factory_os_core.group_factory_quality_manager`，Delivery Manager=`factory_os_core.group_factory_delivery_manager`，Integration Admin=`factory_os_core.group_factory_integration_admin`。**角色身份 ≠ 业务模型 ACL**：core 拥有全部角色组 XML ID（即使对应业务 addon 尚未安装），可选 addon 之后把 ACL/record rule 挂到这些既有组上，不重定义角色。consumer 中的 `orders/supply/production/quality/delivery/dashboard/connector/mobile/core` 分别指对应 `factory_os_*` addon 内的 service/model；实现文件路径在 Phase 0 model mapping 后冻结。
 
 ## capability 分类（ADR-006 Accepted + ADR-007 Accepted，2026-09-07）
 
@@ -14,6 +14,28 @@
 - **Factory-addon-backed monotonic capabilities**：`quality_enabled`（由 `factory_os_quality` 薄模型提供；requires inventory、**NOT requires mrp**；安装即激活，v0.1 无 addon/profile downgrade）。
 - **Workflow/Business capabilities（可 ON ↔ OFF）**：`purchasing_enabled`（requires inventory；ON↔OFF 受 open-transaction guards；**不宣称 Odoo purchase addon 是否存在**——P1 substrate 常驻 purchase/purchase_stock，ADR-007 §4）、`delivery_enabled`（requires inventory、操作 `stock.picking`、不绑 Odoo `delivery` addon，ADR-006 §E/ADR-007 §6）。另含 workflow/UI 子能力：`operations_enabled`、`mobile_warehouse/operator/quality_enabled`、各 inspection 开关与 QC gates、`reports_enabled`、通知类——只影响 Factory OS UI/流程/字段可见性，不触碰引擎；仍受其父项 requires/visible_if 约束。
 - 不新增第二套 capability truth 字段：engine 存在性由"安装 profile"表达，flag 仍是唯一原子配置值；Phase 1 负责"引擎在而 flag 关"的一致性探测与阻止（实现细节 Phase 1，本文件只定语义）。
+
+## 可选引擎字段归属（Optional-engine field ownership）
+
+`factory_os_core` 不得定义 comodel 属于可选 profile 引擎的关系字段：
+
+```text
+stock.*    关系字段由 factory_os_supply / factory_os_delivery / factory_os_quality 定义。
+mrp.*      关系字段由 factory_os_production 定义。
+quality     事务/设置字段由 factory_os_quality 定义。
+delivery    专属字段由 factory_os_delivery 定义。
+```
+
+core 只拥有：
+
+```text
+identity（工厂身份、logo、地址、时区、语言、币种、UoM）、
+role identity（角色组）、
+top-level capability truth（跨 profile 能力开关）、
+configuration audit（factory.config.audit）、
+profile consistency foundation（引擎/能力一致性检测）、
+engine-neutral company settings。
+```
 
 ## 工厂与模块
 
