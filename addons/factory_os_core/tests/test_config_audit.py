@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-from odoo.exceptions import AccessError
+from odoo.exceptions import AccessError, ValidationError
 from odoo.tests import tagged
 from odoo.tests.common import TransactionCase
 
@@ -104,3 +104,52 @@ class TestConfigAudit(TransactionCase):
                 "old_value": "x",
                 "new_value": "y",
             })
+
+    def test_settings_write_reaches_company_validation(self):
+        # Phase 1A boundary: factory_setup_complete is intentionally
+        # readonly in res.config.settings, so there is no writable + legally
+        # writable capability on a core-only DB that can yield a successful
+        # source="settings" audit row. The success-path assertion is deferred
+        # to Phase 1B (SETTINGS-AUDIT-01). Here we prove the genuine
+        # Settings related-field path reaches res.company validation and that
+        # a rejected transaction does not fabricate audit history.
+        settings = self.env["res.config.settings"].create({
+            "company_id": self.company.id,
+        })
+
+        before = self.audit_model.search_count([])
+
+        with self.assertRaises(ValidationError):
+            settings.write({
+                "factory_purchasing_enabled": True,
+            })
+
+        after = self.audit_model.search_count([])
+
+        # Genuine Settings related-field path reached res.company validation,
+        # but the rejected transaction must not fabricate an audit row.
+        self.assertEqual(after, before)
+
+    def test_audit_company_relation_is_restrict(self):
+        field = self.audit_model._fields["company_id"]
+        self.assertEqual(field.ondelete, "restrict")
+
+    def test_audit_company_deletion_raises(self):
+        # Deleting a company that still has audit rows must raise, since
+        # ondelete="restrict" preserves audit history. The exact exception
+        # class is recorded from runtime rather than guessed.
+        company = self.env["res.company"].create({
+            "name": "Disposable Company",
+        })
+        self.audit_model.sudo().create({
+            "company_id": company.id,
+            "user_id": self.env.user.id,
+            "setting_key": "security_test",
+            "old_value": "False",
+            "new_value": "True",
+            "source": "system",
+        })
+
+        from psycopg2 import IntegrityError
+        with self.assertRaises(IntegrityError):
+            company.unlink()

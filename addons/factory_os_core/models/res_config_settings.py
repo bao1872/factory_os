@@ -49,6 +49,16 @@ class ResConfigSettings(models.TransientModel):
         readonly=False,
     )
 
+    def write(self, vals):
+        settings = self.with_context(
+            factory_audit_source="settings"
+        )
+
+        return super(
+            ResConfigSettings,
+            settings,
+        ).write(vals)
+
     def action_factory_check_profile_consistency(self):
         self.ensure_one()
 

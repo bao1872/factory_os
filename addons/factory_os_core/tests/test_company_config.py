@@ -56,3 +56,62 @@ class TestCompanyConfig(TransactionCase):
                 "factory_inventory_enabled": True,
                 "factory_quality_enabled": True,
             })
+
+    def _company_vals(self, suffix):
+        return {
+            "name": f"Factory Test {suffix}",
+        }
+
+    def test_create_default_safe_minimal_company(self):
+        company = self.env["res.company"].create(
+            self._company_vals("Safe Minimal")
+        )
+
+        self.assertTrue(company.factory_sales_enabled)
+        self.assertFalse(company.factory_inventory_enabled)
+        self.assertFalse(company.factory_mrp_production_enabled)
+        self.assertFalse(company.factory_quality_enabled)
+        self.assertFalse(company.factory_purchasing_enabled)
+        self.assertFalse(company.factory_setup_complete)
+
+    def test_create_rejects_disabled_order_core(self):
+        vals = self._company_vals("Order Off")
+        vals["factory_sales_enabled"] = False
+
+        with self.assertRaises(ValidationError):
+            self.env["res.company"].create(vals)
+
+    def test_create_rejects_purchasing_without_inventory(self):
+        vals = self._company_vals("Purchase Invalid")
+        vals["factory_purchasing_enabled"] = True
+
+        with self.assertRaises(ValidationError):
+            self.env["res.company"].create(vals)
+
+    def test_create_rejects_mrp_without_inventory(self):
+        vals = self._company_vals("MRP Invalid")
+        vals["factory_mrp_production_enabled"] = True
+
+        with self.assertRaises(ValidationError):
+            self.env["res.company"].create(vals)
+
+    def test_create_rejects_quality_without_inventory(self):
+        vals = self._company_vals("Quality Invalid")
+        vals["factory_quality_enabled"] = True
+
+        with self.assertRaises(ValidationError):
+            self.env["res.company"].create(vals)
+
+    def test_create_rejects_inventory_without_profile(self):
+        vals = self._company_vals("Inventory Invalid")
+        vals["factory_inventory_enabled"] = True
+
+        with self.assertRaises(ValidationError):
+            self.env["res.company"].create(vals)
+
+    def test_create_rejects_setup_complete(self):
+        vals = self._company_vals("Fake Setup")
+        vals["factory_setup_complete"] = True
+
+        with self.assertRaises(ValidationError):
+            self.env["res.company"].create(vals)

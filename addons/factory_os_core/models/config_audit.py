@@ -12,7 +12,7 @@ class FactoryConfigAudit(models.Model):
         "res.company",
         required=True,
         index=True,
-        ondelete="cascade",
+        ondelete="restrict",
     )
 
     user_id = fields.Many2one(

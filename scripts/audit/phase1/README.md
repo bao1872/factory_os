@@ -23,6 +23,7 @@
 | `probe_core_only.py` | `factory_os_core` | core installed；stock/mrp **未安装**；inventory/mrp flag=false；`_consistency_issues` == [] |
 | `probe_external_stock.py` | `stock,factory_os_core` | stock installed；inventory flag=false；issue 含 `STOCK_ENGINE_WITH_INVENTORY_OFF` |
 | `probe_external_mrp.py` | `mrp,factory_os_core` | mrp+stock installed；mrp/inventory flag=false；issue 含 `STOCK_ENGINE_WITH_INVENTORY_OFF` 与 `MRP_ENGINE_WITH_MRP_OFF` |
+| `probe_create_bypass.py` | `factory_os_core` | 尝试创建非法 company（Order Core off / MRP without inventory）→ 均 `ValidationError`；0 非法 company 残留 |
 
 ## 运行方式
 
@@ -48,6 +49,46 @@ $PYBIN $ODOO_BIN -d factory_phase1_stock --addons-path=addons,odoo-19/odoo/addon
 $PYBIN $ODOO_BIN -d factory_phase1_mrp --addons-path=addons,odoo-19/odoo/addons \
     -i mrp,factory_os_core --stop-after-init --db_host=/tmp --db_user=zhenbao
 # 跑 probe_external_mrp.py（同上 shell 方式）
+
+# 5. 建库并装 core（create-bypass）
+$PYBIN $ODOO_BIN -d factory_phase1_create --addons-path=addons,odoo-19/odoo/addons \
+    -i factory_os_core --stop-after-init --db_host=/tmp --db_user=zhenbao
+# 跑 probe_create_bypass.py（同上 shell 方式）
 ```
 
 > `-i` 带逗号多模块在 Odoo 19 用逗号分隔即可（等价 `-i stock,factory_os_core`）。
+
+## Phase 1B 集成验证契约（强制，延后项）
+
+### SETTINGS-AUDIT-01
+
+```text
+Owner: Phase 1B
+Reason: core-only profile 有意不存在「既可写、又能通过模块/profile 校验
+并成功生成 Settings 来源 audit row」的能力。这是 Safe Minimal 能力语义的
+必然结果，非缺失实现的欠债。
+
+Precondition:
+已安装一个真实可写的 Factory OS workflow capability（其所属 addon/profile
+已安装）。推荐首选：inventory profile（stock + factory_os_supply）已安装。
+
+Action:
+通过 res.config.settings 修改该 capability。
+
+Required path:
+res.config.settings
+→ related inverse
+→ res.company.write
+→ factory.config.audit
+
+Assertions:
+audit row exists
+source == "settings"
+user_id == 实际用户
+old_value/new_value 正确
+一次真实变更恰好一条 row
+
+禁止:
+使用 factory_setup_complete（该字段在 res.config.settings 有意 readonly，
+由 Setup Wizard / profile service 控制，非普通 Settings 开关）。
+```

@@ -1,4 +1,4 @@
-from odoo import _, fields, models
+from odoo import _, api, fields, models
 from odoo.exceptions import ValidationError
 
 
@@ -128,6 +128,96 @@ class ResCompany(models.Model):
                             ),
                         )
                     )
+
+    def _factory_validate_initial_values(self, vals):
+        values = {
+            "factory_sales_enabled": vals.get(
+                "factory_sales_enabled", True
+            ),
+            "factory_inventory_enabled": vals.get(
+                "factory_inventory_enabled", False
+            ),
+            "factory_mrp_production_enabled": vals.get(
+                "factory_mrp_production_enabled", False
+            ),
+            "factory_quality_enabled": vals.get(
+                "factory_quality_enabled", False
+            ),
+            "factory_purchasing_enabled": vals.get(
+                "factory_purchasing_enabled", False
+            ),
+            "factory_delivery_enabled": vals.get(
+                "factory_delivery_enabled", False
+            ),
+            "factory_reports_enabled": vals.get(
+                "factory_reports_enabled", False
+            ),
+            "factory_connector_enabled": vals.get(
+                "factory_connector_enabled", False
+            ),
+        }
+
+        if vals.get("factory_setup_complete"):
+            raise ValidationError(
+                _(
+                    "Factory OS setup cannot be marked complete "
+                    "during company creation."
+                )
+            )
+
+        if not values["factory_sales_enabled"]:
+            raise ValidationError(
+                _("Factory OS Order Core cannot be disabled.")
+            )
+
+        inventory = values["factory_inventory_enabled"]
+
+        if values["factory_purchasing_enabled"] and not inventory:
+            raise ValidationError(
+                _("Purchasing requires Inventory in Factory OS v0.1.")
+            )
+
+        if values["factory_delivery_enabled"] and not inventory:
+            raise ValidationError(
+                _("Delivery requires Inventory.")
+            )
+
+        if values["factory_mrp_production_enabled"] and not inventory:
+            raise ValidationError(
+                _("Formal MRP requires Inventory.")
+            )
+
+        if values["factory_quality_enabled"] and not inventory:
+            raise ValidationError(
+                _("Quality requires Inventory.")
+            )
+
+        service = self.env["factory.os.profile.service"]
+
+        for flag, requirement in service._CAPABILITY_REQUIREMENTS.items():
+            if not values[flag]:
+                continue
+
+            missing = service._missing_modules(
+                requirement["modules"]
+            )
+
+            if missing:
+                raise ValidationError(
+                    _(
+                        "Capability %(flag)s cannot be enabled because "
+                        "required modules are not installed: %(modules)s",
+                        flag=flag,
+                        modules=", ".join(missing),
+                    )
+                )
+
+    @api.model_create_multi
+    def create(self, vals_list):
+        for vals in vals_list:
+            self._factory_validate_initial_values(vals)
+
+        return super().create(vals_list)
 
     def write(self, vals):
         self._factory_validate_write(vals)

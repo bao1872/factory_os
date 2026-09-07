@@ -1,11 +1,12 @@
 # Factory OS Governance Consistency Audit
 
-Date: 2026-09-07（v1.0.4 re-audit）
-Scope: governance documentation + authority consistency; 本审计覆盖 **ADR-007 Proposed → Accepted**（用户 Accept with final architecture）+ 随之的 authority 转正（8-addon manifest 精确合同、purchasing/quality 能力分类改判、Phase 3/4 重划线、永久 profile closure 检查落地）。No business code added.
+Date: 2026-09-07（v1.0.5 re-audit）
+Scope: governance documentation + authority consistency; 本审计覆盖 **ADR-007 Proposed → Accepted**（v1.0.4 已审）+ 之后 commit `b74a6e4`（GOVERNED authority-first change，修改 `configuration-schema.md` 角色属主与字段归属）触发的 re-audit，以及 Phase 1A core kernel 实现（`d0f191c`）与 Phase 1A.1 hardening 的 authority 一致性复检。No business code added.
 
 ## Audit type & staleness trigger
 
 - **ADR-007（ARCHITECTURAL）由 Proposed 转 Accepted**（用户 2026-09-07 裁决 Accept with final architecture：能力图、8-addon 精确 manifest 合同、Purchasing=Workflow、Quality=Factory-addon-backed monotonic、Delivery=Workflow、Phase 1–4 属主、PROFILE_CONTRACTS 永久闭包、Dashboard/Optional-module registry 规则）——按 [change-control.md §4.4](change-control.md#44-audit-staleness-rule审计过期规则)，新 Accepted ARCHITECTURAL 语义 + 更新多条 authority → Governance Gate 置 **STALE**。本文件即 STALE 状态下重新执行的完整 consistency audit（v1.0.4）。
+- **b74a6e4（GOVERNED authority-first change，2026-09-07）**：commit 自身标记为 GOVERNED，修改 `configuration-schema.md`——①权限映射的角色 XML ID 从各业务 addon（orders/supply/production/quality/delivery/connector）改归 `factory_os_core`（角色身份 ≠ 业务模型 ACL）；②新增「Optional-engine field ownership」规则（core 只拥有 identity/role identity/capability truth/audit/consistency，stock/mrp/quality/delivery 关系字段归 owning addon）。按 change-control §4.4，GOVERNED 治理语义修改 → Governance Gate 再次 STALE → 需 full re-audit。**v1.0.4 的审计范围早于此改动，故 v1.0.4 的 COMPLETE 状态不适用于当前仓库**——本文件 v1.0.5 即为此 STALE 状态下的完整 re-audit。
 - v1.0.3 遗留的 **REGISTERED-OPEN #20**（profile↔manifest dependency-closure）：ADR-007 现已 Accepted 并落地 → 本版转 **PASS**，并新增永久检查 #21（Technical Installation Profile manifest closure，PROFILE_CONTRACTS 逐 profile 复检）。
 
 ### Gate 状态机
@@ -31,7 +32,13 @@ COMPLETE →（STANDARD 治理修复：typo / link-only）→ targeted check，G
 - **technical-risks.md**：Gate → **PASS**；R1/R11 更新为 ADR-006+ADR-007 Accepted 双裁决表述（残留执行风险 Phase 1/3/4）。
 - 未修改：System Invariants（无真实矛盾）；UI 设计文档；configuration-matrix.md（产品可读矩阵不含 capability/依赖语义）；Quick Start preset（Business UX 不变）。
 
-## Consistency results（v1.0.4，22 项）
+## Delta（v1.0.4 → v1.0.5）
+
+- **b74a6e4（GOVERNED authority-first change）触发 STALE**：该 commit 明确标记 GOVERNED，修改 `configuration-schema.md`——①权限映射角色 XML ID 从各业务 addon（`factory_os_orders.group_factory_sales_manager` 等）改归 `factory_os_core.group_factory_*`；②新增「Optional-engine field ownership」规则。按 change-control §4.4，GOVERNED 治理语义修改 → Gate STALE → 必须 full re-audit（v1.0.5）。v1.0.4 审计范围早于此改动，故其 COMPLETE 不适用当前仓库。
+- **Phase 1A core kernel（d0f191c）+ Phase 1A.1 hardening 的 authority 一致性复检**：core 角色组定义、字段归属、manifest P0 安全、安全模型、ADR-007 边界是否仍与权威一致。属实现落地后的 authority 一致性核验（实现类变更本身不属治理语义，但需确认未越权威边界）。
+- **SETTINGS-AUDIT-01 登记为 Phase 1B 延后验证项**：属实现验证事项，**非**治理矛盾，不置 Gate BLOCKED。详见下方 #23。
+
+## Consistency results（v1.0.5，23 项）
 
 | # | Check | Result | Evidence |
 |---|---|---|---|
@@ -57,6 +64,9 @@ COMPLETE →（STANDARD 治理修复：typo / link-only）→ targeted check，G
 | 20 | profile↔manifest dependency-closure（v1.0.3 REGISTERED → 本版 PASS） | PASS | ADR-007 Accepted 目标落地：supply/delivery/dashboard/quality 行已无越级引擎（见 #4–#7）；闭包矩阵 8 行 PASS（#3）。 |
 | 21 | **Technical Installation Profile manifest closure（新永久检查，PROFILE_CONTRACTS）** | PASS | 契约落盘 addon-dependency-map §7 + ADR-007 §8 + progressive-adoption 约束：P0 forbidden={stock,mrp,sale_stock,sale_mrp,purchase,purchase_stock,purchase_mrp}、P1 forbidden={mrp,sale_mrp,purchase_mrp}、P2 forbidden=∅；direct+transitive+auto_install 闭包复检 8 addon 目标全部满足；任何 addon 依赖变更强制复检（Phase 1 profile installer / audit tooling 共用同一契约，本轮只写合同不实现）。 |
 | 22 | 链接/引用可解析 + git diff --check 干净 | PASS | 相对链接全部指向存在文件；diff 无空白错误；Verification grep 清单（§§ 下方）全部通过。 |
+| 23 | **b74a6e4 角色属主落地 = core（角色身份 ≠ 业务 ACL）；可选引擎字段归属与 ADR-007 一致** | PASS | `configuration-schema.md` 权限映射全部角色改为 `factory_os_core.group_*`；`addons/factory_os_core/security/factory_os_security.xml` 13 组（user/manager/admin/owner + 9 functional）全定义于 core；core `models/` 无任何 `stock.*`/`mrp.*`/`product.*` 关系字段（grep 零命中）；「Optional-engine field ownership」规则落地为 core 仅拥有 identity/role identity/capability truth/audit/consistency。 |
+| 24 | **core manifest 保持 P0-safe；无 stock/mrp 关系字段；ADR-007 manifest/profile 边界不变** | PASS | `__manifest__.py` depends=[base,mail,web,contacts,product]，无 sale/stock/purchase/mrp（grep 零命中）；8-addon 架构与 PROFILE_CONTRACTS 未改；Phase 1A core kernel 未引入任何可选引擎依赖或业务实现。 |
+| 25 | **SETTINGS-AUDIT-01 登记为 Phase 1B 延后验证（实现验证项，非治理矛盾）** | PASS（延后） | core-only profile 有意不存在「既可写、又能通过模块/profile 校验并成功生成 Settings 来源 audit row」的能力（Safe Minimal 语义）。`test_settings_write_reaches_company_validation` 已证明真实 Settings related-field 路径进入 `res.company.write` 且被拒事务不伪造 audit；成功路径断言延后到 Phase 1B（契约登记于 `scripts/audit/phase1/README.md`）。不置 Gate BLOCKED。 |
 
 ## Reported contradictions（resolution 更新）
 
@@ -71,13 +81,15 @@ COMPLETE →（STANDARD 治理修复：typo / link-only）→ targeted check，G
 supply 目标依赖无 mrp / delivery 无 production·quality·delivery / dashboard 无 supply·production·quality·delivery·stock·mrp
 quality 无 mrp / orders 无 stock·sale_stock / purchasing_enabled 非 engine-backed / purchasing requires inventory
 quality_enabled 不 requires mrp / process_inspection_enabled requires mrp / Phase 1 无 Supply / Phase 3 无 BOM-MRP 退出 / Phase 4 拥有 BOM-driven shortage
+core manifest 无 sale·stock·purchase·mrp / core models 无 stock.*·mrp.*·product.* 关系字段 / 13 角色组全归 factory_os_core
 git diff --check 无输出；相对链接全部解析
 ```
 
 ## Gate decision
 
-**Governance Gate: COMPLETE（v1.0.4 re-audit；22 项全部 PASS，无 REGISTERED-OPEN）。**
+**Governance Gate: COMPLETE（v1.0.5 re-audit；25 项全部 PASS，无 REGISTERED-OPEN；1 项延后验证 SETTINGS-AUDIT-01 → Phase 1B）。**
 
-- v1.0.3 COMPLETE →（ADR-007 Proposed→Accepted，ARCHITECTURAL + authority 转正）→ STALE →（本 full re-audit）→ **COMPLETE**。
-- **Phase 0 Gate: PASS — awaiting user authorization for Phase 1**（ADR-007 Accepted；manifest target closure consistent；purchasing/quality/delivery 分类已改判；Phase 1/2/3/4 ownership 已更正；governance full audit PASS）。
-- 不授权任何业务实现；Phase 1 启动等待用户单独授权。System Invariants 与 UI 权威未改。
+- v1.0.4 COMPLETE →（b74a6e4 GOVERNED authority modification）→ STALE →（本 full re-audit v1.0.5）→ **COMPLETE**。
+- **Phase 1A: PASS**（create 防线 / audit restrict / 完整安全矩阵 / Settings 真实写路径证明 / 4 探针全 PASS / 40 tests 0 failed 0 error）。Phase 1 overall: IN PROGRESS。**Phase 1B: eligible for authorization（未启动）**。
+- 延后验证项 **SETTINGS-AUDIT-01 → Phase 1B**：属实现验证事项（Safe Minimal 语义的自然结果），非治理矛盾，不影响 Gate。
+- 不授权任何业务实现；Phase 1B 启动等待用户单独授权。System Invariants 与 UI 权威未改。
