@@ -3,13 +3,30 @@
 Date: 2026-09-07（Phase 0 r2）
 来源：全部来自本 Phase 实测（native-behavior-audit / addon-dependency-map / security-baseline / state-map 的证据行）。每条含证据、影响、建议与责任 Phase。风险等级：P0（必须 Phase 1 前决策/缓解）、P1（Phase 1-3 内处理）、P2（观察项）。
 
+## Gate Status（2026-09-07 STOP resolution）
+
+```
+Phase 0 evidence collection: mostly complete
+Phase 0 Gate: BLOCKED — Odoo Reality architecture decision required
+原因: capability/addon 架构未决（STOP A → R1）+ MTO 原生行为此前测试不完整（STOP B → 已由 Test E/F/H3 补测，见 R10）
+决策载体: ADR-006（Status: Proposed，未采纳）
+```
+
+R1 由"建议"升级为**未决架构冲突**；E–H 实测（native-behavior-audit §8）证明 Safe Minimal=不装引擎、MTO 激活即 SO 确认自动 MO/RFQ。Gate 在 ADR-006 裁决前维持 BLOCKED，不自动授权 Phase 1。
+
 ## P0
 
-### R1 能力分层 ≠ 原生联动：装了 stock/mrp 后原生规则不可由配置关闭
-- 证据：测试 A/B——只要 stock 已装，SO/PO 确认对任何 consu 货物（含非 storable plain）都生成 picking/move（A3R S00009/S00010、B P00001/P00002）；Safe Minimal 下"无 BOM/库存/MO 的订单执行"只在**不装 stock**时成立。mrp 已装时仓库默认 Manufacture/Buy 路线存在（C_WH 实测）。
-- 影响：configuration-schema 的 flags 只控 Factory OS UI/流程（开发计划 §0.1 L22）。若某工厂先装了 stock/mrp 而 inventory/mrp flag 关闭，原生仍会产 picking/可手动建 MO → "flag 关闭"≠"引擎停用"。
-- 建议：**安装方案与能力分层绑定**（初始化向导按 Safe Minimal→Inventory→MRP→Quality 逐级安装模块，升级不可逆或记录迁移路径）；Factory OS 服务层在 flag 关闭时自校验（如拒绝展示原生库存菜单入口不等于安全——不变量 #8）；PRD/计划不含 stock 的简单执行闭环必须在**无 stock addon** 环境验证（Phase 2 Gate）。
-- 责任：Phase 1（向导与安装矩阵）+ Phase 0 Gate 决策。
+### R1 capability 分层 vs 原生引擎联动：架构冲突未决 → ADR-006（STOP A，升级为 ARCHITECTURAL）
+- 证据：测试 A/B——只要 stock 已装，SO/PO 确认对任何 consu 货物（含非 storable plain）都生成 picking/move（A3R S00009/S00010、B P00001/P00002）；G——Safe Minimal（仅 sale，54 模块）下引擎模型全部不存在、Goods SO 确认零物流对象；H2/H3——同库渐进装 stock/mrp 后旧单零回溯、新单即入引擎。反向结论：**"已装引擎但 flag 关"不存在"回到无库存事务"的状态**。
+- 影响：progressive-adoption.md「capability flags 不动态安装或卸载 Odoo addons」（L10）与 Safe Minimal/preset「无库存/MO/QC 事务」（L8/L92-99）在"引擎已装 + flag 关"组合下互斥；若某工厂先装 stock/mrp 而 inventory/mrp flag 关闭，原生仍产 picking/可自动 MO。
+- 处置（本 STOP resolution）：**不再由审计侧静默选型**。三选项（installed-addon profiles 单调升级 / 全装并接受隐藏原生事务 / 拦截抑制原生副作用）与各自后果分析已在 `docs/decisions/ADR-006-capability-engine-and-addon-installation.md` 展开（**Status: Proposed，未采纳**）；裁决前 configuration-schema / progressive-adoption / 开发计划一律不修改。
+- 责任：用户 Gate 裁决（ADR-006 Accept/Reject/Amend）+ Phase 1（按裁决实现安装 profile 与 manifest）。
+
+### R10 原生 MTO：SO 确认自动建 MO/RFQ，flag 无法抑制（STOP B 补测结论）
+- 证据：Test E（factory_phase0_mto）——激活 `stock.route_warehouse0_mto` + 产品 route=[Manufacture, MTO] + BoM，SO=S00002 确认即 **mo 0→1**（WH/MO/00001 confirmed, origin=S00002, qty=3.0），sale 行成品 move proc=make_to_order，`action_view_mrp_production()['res_id']==mo.id`；Test F——MTO+Buy+供应商 → SO 确认即 **po/rfq 0→1**（P00001 draft, origin=S00001）；H3 在同库渐进场景复现（mo 0→1）。配方对齐官方 sale_mrp 测试。
+- 影响：原 Test C（is_mto=False）的「任何场景都不自动建 MO」过宽结论撤回；**MTO 配置 + 引擎已装时，`mrp_production_enabled=false` 无法阻止原生自动 MO/RFQ**——强化 R1 与 ADR-006；低能力级库若误配 MTO route 会绕过"无库存/MO 事务"承诺。
+- 建议：产品建模/导入向导校验 MTO route 分配与当前安装 profile 一致（MTO 产品只允许存在于正式生产级库）；`factory_os_orders` 对带 MTO route 的 SO 行在低能力级库给出显式阻断或提示（Phase 1，待 ADR-006 裁决）。
+- 责任：用户 Gate 裁决 + Phase 1（产品建模向导 + orders 校验）。
 
 ### R2 Community 无 quality addon → 质检与成品质检 Gate 全自建
 - 证据：addon 目录与 registry 均无 quality.check/point/alert（EXIST=False）；无 enterprise。
@@ -26,8 +43,8 @@ Date: 2026-09-07（Phase 0 r2）
 ## P1
 
 ### R4 原生自动补货触发入口与旧 procurement API 差异
-- 证据：SO 确认不带 Manufacture 路线时无 MO（C1/C2）；orderpoint.action_replenish 仅返回向导动作、不直接产 MO/PO（C3：mo 0->0, po 3->3）。
-- 影响：factory_os_production 创建 MO 的路径必须是显式调用（直接建单或调度器环境补货），不能假设任何"确认即 MRP"。
+- 证据：非 MTO 下 SO 确认不带 Manufacture 路线时无 MO（C1/C2）；orderpoint.action_replenish 仅返回向导动作、不直接产 MO/PO（C3：mo 0->0, po 3->3）。**MTO 例外**：MTO 激活 + 产品带 MTO route 时 SO 确认即自动 MO/RFQ（E/F/H3，见 R10），不受本条目"确认即 MRP"否定影响。
+- 影响：factory_os_production 创建 MO 的路径必须是显式调用（直接建单或调度器环境补货），不能假设任何"确认即 MRP"——**除非产品走 MTO**（MTO 属原生自动，Factory OS 只需做 profile/校验）。
 - 建议：Phase 3 先补"调度器触发补货→MO/组件采购"端到端测试（本 Phase §7 补测项 1），据此设计 factory_os_supply 的缺料服务与操作入口。
 - 责任：Phase 3。
 
@@ -66,4 +83,4 @@ Date: 2026-09-07（Phase 0 r2）
 
 - 平行库存/平行生产：已被 system-invariants #3 + ADR-002/003 排除，Phase 0 不重开（ADR-002 Supersedes）。
 - 离线事务：ADR-005 排除，本 Phase 未测试（不适用于 v0.1）。
-- MO 自动生成缺失**不是缺陷**：原生语义即"补货驱动"，与 ADR-003 设计一致（见 native-behavior-audit §3.1）。
+- MO 非 MTO 下"确认不自动生成"**不是缺陷**：原生语义即"补货驱动"，与 ADR-003 设计一致；而 MTO 下"确认即自动 MO/RFQ"是原生正式行为（E/F/H3），Factory OS 以安装 profile + MTO route 校验管理它（ADR-006 Proposed），不是缺陷也不是可抑制的副作用。

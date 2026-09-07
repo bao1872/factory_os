@@ -2,7 +2,21 @@
 
 Date: 2026-09-07（Phase 0 r2 复核；全新数据库复跑）
 Authorities: ADR-002 / ADR-003 / ADR-004 · system-invariants #2/#3/#14 · 开发计划 §0.1/§6/§10/§19-§20/§24-§26/§39
-方法：在全新 DB `factory_phase0_r2`（初始安装 sale_management,stock,purchase,mrp → 72 模块实测）上用 `odoo shell` 脚本做 create→action→全局 counts 差量 + 记录级断言；每次脚本独立 commit。脚本存 `/tmp/phase0_audit/*.py`（临时，不入库）；结果文件 `r2_*.txt` 同目录。
+方法：在全新 DB `factory_phase0_r2`（初始安装 sale_management,stock,purchase,mrp → 72 模块实测）上用 `odoo shell` 脚本做 create→action→全局 counts 差量 + 记录级断言；每次脚本独立 commit。脚本存 `/tmp/phase0_audit/*.py`（临时，不入库）；结果文件 `r2_*.txt` 同目录。STOP resolution（E–H）在 `factory_phase0_mto`（72 模块）与 `factory_phase0_min`（54→61→64 模块渐进）两个新库复现，证据见 §8。
+
+## 0. Phase 0 Gate Status（2026-09-07 STOP resolution）
+
+```
+Phase 0 evidence collection: mostly complete
+Phase 0 Gate: BLOCKED — Odoo Reality architecture decision required
+原因:
+  capability/addon 架构未决（STOP A: inventory_enabled=false 无法抑制已装 stock 的原生 SO/PO→picking/move）
+  + MTO 原生行为测试不完整（STOP B: 原 Test C 未激活 MTO，曾得出过宽结论）
+```
+
+- STOP A 升级为 **ARCHITECTURAL 决策**：三选项与后果分析见 `docs/decisions/ADR-006-capability-engine-and-addon-installation.md`（**Status: Proposed，未采纳**）；本文件与 technical-risks 不静默修改 progressive-adoption / configuration-schema / 开发计划。
+- STOP B 由 Test E/F/H3 运行时复现解决（§8）：MTO 激活后 SO 确认**会**自动建 MO（E/H3）与 RFQ（F）——原 Test C 的过宽结论已在 §3.1 更正。
+- Gate 维持 BLOCKED 直至 ADR-006 裁决；不自动授权 Phase 1。
 
 ## 1. 产品类型与库存语义（Odoo 19 与旧记忆的关键差异）
 
@@ -20,6 +34,10 @@ Authorities: ADR-002 / ADR-003 / ADR-004 · system-invariants #2/#3/#14 · 开�
 | B PO 确认 | 同上（采购侧） | storable→incoming picking；**plain 同样生成 incoming picking**；service→不生成 |
 | C MRP 触发路径 | SO 确认/线路带 Manufacture 是否自动出 MO；MO 组件消耗与产出 | 产品带 Manufacture 路线、SO 行 route=Manufacture、is_mto=False → SO 确认**不创建 MO**（只出 delivery picking）；orderpoint.action_replenish 返回向导动作、**不直接生成 MO/PO**。手工建 MO 确认后组件消耗链与产出成立（见 C4R） |
 | D 渐进采用 | 后期开启能力是否伪造/重写历史 | 产品改为 storable+Manufacture/Buy 路线后，**旧 SO 不回溯生成任何 MO/picking**（delta=0）；新 SO 仅多 1 个 delivery picking，仍无自动 MO → **原生不伪造历史** |
+| E TRUE MTO+Manufacture（STOP B） | MTO 激活 + Manufacture + BoM，SO 确认是否**立即**建 MO；验证原生 SO↔MO 关系 | **mo 0→1**：SO=S00002 确认即 WH/MO/00001(confirmed, origin=SO, qty=3.0)；sale 行成品 move `proc=make_to_order`；`so.action_view_mrp_production()['res_id']==mo.id` MATCH → **MTO 时 SO 确认自动建 MO**（官方行为复现，非源码推断） |
+| F TRUE MTO+Buy（STOP B） | 同上，购买侧：是否立即建 RFQ/PO | **po/rfq 0→1**：P00001(draft, origin=SO, 5.0×10)；picks 0→1（WH/OUT waiting）→ **MTO 时 SO 确认自动建 RFQ** |
+| G REAL Safe Minimal profile | 仅装最小原生模块（sale 依赖图），不装 stock/purchase/mrp 引擎：能否真实存在、实体 Goods SO 是否产生物流 | **可真实存在**：54 模块，引擎+全部桥接 ABSENT，stock.picking/move/quant、mrp.production、purchase.order 模型不存在；Goods SO=S00001 确认 state=sale，**零物流对象**（模型即不存在） |
+| H 同库渐进 addon 安装（真正渐进实验） | SO-OLD → 装 stock → 装 mrp：旧单是否回溯、新单何时入引擎、MTO 单是否自动 MO | 54→61(+stock/sale_stock/stock_account)→64(+mrp/sale_mrp/mrp_account)；**SO-OLD 全程零回溯**；装 stock 后新 SO 即出 delivery picking；装 mrp 后新 MTO 产品 SO=S00004 确认即 mo 0→1（WH/MO/00001, origin=SO, SO↔MO MATCH） |
 
 ### A 证据（r2_test_A_simple_so_r2.txt）
 ```
@@ -62,7 +80,7 @@ D_NEW_SO S00008 | delta_mo=0 delta_pick=1（新订单只多 delivery picking，�
 
 ## 3. 关键结论（影响 Factory OS 设计）
 
-1. **SO/PO 确认 ≠ 自动 MO**：即使产品/行带 Manufacture 路线（含 MTO 规则行）也不创建 MO；MO 只由补货引擎/调度器路径产生。与 ADR-003 的"简单执行与正式 MRP 分离"兼容：Factory OS 需要显式调用原生补货/调度（而非依赖 SO 确认）来触发 MO —— Phase 3 Supply/Production Gate 测试必须覆盖该触发入口（C3 暴露：orderpoint.action_replenish 是 UI 向导动作，不直接产出）。
+1. **SO/PO 确认是否自动 MO 取决于 MTO 是否激活（STOP B 更正，原 Test C 的过宽结论撤回）**：非 MTO（make_to_stock，`stock.route_warehouse0_mto` 未激活或产品未带 MTO route）时 SO 确认**不**自动 MO（C1/C2）——MO 走补货/调度路径；**MTO（Replenish on Order）激活且产品 route=[Manufacture, MTO]+BoM 时，SO 确认立即创建 MO**（E/H3：WH/MO confirmed, origin=SO 名, qty=3.0/2.0），**MTO+Buy 时立即创建 RFQ**（F）。含义修正：与 ADR-003「简单执行与正式 MRP 分离」兼容的正确表述是——Factory OS 若要与原生 MO 交互，产品/订单必须走 MTO 或显式补货；**任何 flag 都无法阻止"已装 mrp/sale_mrp/stock + 产品 MTO 配置"下的原生自动 MO**。能力分层的实质是 **addon 安装分层**（ADR-006 Proposed）。
 2. **原生 picking 生成只认"装没装 stock + 产品类型/路线"**：storable 与 plain goods 的 SO/PO 确认都产生 picking/move（warehouse 默认 Deliver/Receive 路线），service 不产生。Safe Minimal（不装 stock 只装 sale）下 SO 确认不会产生任何 picking/move——**能力分层在原生侧 = addon 安装分层**，而不是配置开关。
 3. **原生不伪造历史**：能力后开只影响新单据（D：旧 SO 零回溯；新 SO 多 delivery picking），与 ADR-004、不变量 #14 一致。
 4. **Lot 追溯闭环可用**：成品 Lot→quant 双行（-Production/+WH/Stock）、move_line.move_id.production_id 与 raw_material_production_id 可支撑 DERIVED 追溯（不变量 #4）；`stock.traceability.report` 存在于 Community（stock/report/stock_traceability.py:22）。
@@ -99,7 +117,68 @@ D_NEW_SO S00008 | delta_mo=0 delta_pick=1（新订单只多 delivery picking，�
 
 ## 7. Phase 3+ 必须补测项（本 Phase 不阻塞）
 
-1. 通过调度器/cron 环境显式触发补货生成 MO 的完整链路（C3 只证明 action_replenish 是向导动作）。
+1. 通过调度器/cron 环境显式触发补货生成 MO 的完整链路（C3 只证明 action_replenish 是向导动作；**MTO 直生 MO/RFQ 边界已由 E/F/H3 运行时覆盖**）。
 2. 盘点向导端到端（quant 调整 + 差异过账）。
 3. delivery addon 安装后的 carrier/费用对发货流程的影响。
 4. 多公司 record rule 在跨公司访问下的实际拦截（IRL 权限矩阵测试）。
+
+## 8. STOP Resolution 实测证据 E–H（2026-09-07，全为新库运行时复现）
+
+DB：`factory_phase0_mto`（初始安装 sale_management,stock,mrp,purchase → 72 模块，sale_stock/sale_mrp/purchase_stock 桥接自动）跑 E/F；`factory_phase0_min` 跑 G/H。配方对齐官方测试 `sale_mrp/tests/test_sale_mrp_procurement.py:21,45-46,76-80`（激活 `stock.route_warehouse0_mto`，产品 route = `warehouse0.manufacture_pull_id.route_id + mto_pull_id.route_id`）。输出原文存 `/tmp/phase0_audit/r2_test_*.txt`。
+
+### E — TRUE MTO + Manufacture（r2_test_E_mto_manufacture.txt）
+```
+E_ROUTES product routes= ['Manufacture', 'Replenish on Order (MTO)']
+E_CONFIRM SO= S00002 state= sale
+E_DELTA picks 1->2 | moves 1->4 | mo 0->1 | po/rfq 1->1
+E_MO_CREATED [('WH/MO/00001', 'confirmed', 'origin=S00002', 'qty=3.0')]
+E_REL action_view_mrp_production res_id= 1 | first_mo.id= 1 MATCH=True
+E_MOVES sale_line linked [(2, 'FG-E-MTO-MFG', 'Stock->Customers', 'proc=make_to_order', 'origin=S00002', 'state=waiting'),
+                          (4, 'FG-E-MTO-MFG', 'Production->Stock', 'proc=make_to_stock', 'origin=WH/MO/00001', 'state=assigned')]
+E_PICKS origin=SO [('WH/OUT/00002', 'waiting', 'Stock->Customers')]
+```
+答：**MTO + Manufacture + BoM → SO 确认立即创建 MO**（confirmed, origin=SO 名）；SO↔MO 原生关系方法 `action_view_mrp_production()` 返回 res_id == mo.id。
+
+### F — TRUE MTO + Buy（r2_test_F_mto_buy.txt）
+```
+F_ROUTES product routes= ['Buy', 'Replenish on Order (MTO)']  (含供应商 seller，delay=0)
+F_SO_PRE line is_mto=True
+F_DELTA picks 0->1 | moves 0->1 | mo 0->0 | po/rfq 0->1
+F_RFQ_CREATED [('P00001', 'draft', 'origin=S00001', 57.5)]  → 行 5.0 × 10.0
+F_PICKS origin=SO [('WH/OUT/00001', 'waiting')]
+F_REL pol.sale_order_id links= 0（sale_order_id 字段存在但 RFQ 行未回填 → 原生 SO↔RFQ 身份链接 = origin 字符串，非 FK；sale_purchase 链路在 Phase 6 决策）
+```
+答：**MTO + Buy → SO 确认立即创建 draft RFQ**（origin=SO 名），并预留 waiting 发货单。
+
+### G — REAL Safe Minimal 安装 profile（r2_test_G_safe_minimal.txt）
+```
+G_MODULES total_installed= 54          （初始安装仅 -i sale）
+G_FORBIDDEN_PRESENT NONE — no stock/purchase/mrp engine（stock/sale_stock/purchase/purchase_stock/
+    purchase_mrp/mrp/sale_mrp/stock_account/mrp_account/delivery 全部未装）
+G_MODELS stock.picking/move/quant, mrp.production, purchase.order = False；sale.order/product.product = True
+G_PRODUCT type= consu | is_storable field= False
+G_SO_PRE line fields: route_ids= False
+G_CONFIRM SO= S00001 state= sale（2.0）→ G_LOGISTICS MODEL-ABSENT（零物流对象）
+```
+答：**Safe Minimal 是真实可存在的 Odoo 安装 profile**：54 模块含 Customer/Product/SO/mail/chatter；实体 Goods 订单确认不产生任何 stock/mrp/purchase 对象。注意 sale 依赖图带入了 account（sale→account_payment→account），但**不带**任何库存/生产引擎。
+
+### H — 同库渐进 addon 安装（真正的 Progressive Adoption 实验）
+```
+DB factory_phase0_min：54 模块（sale）→ -i stock → 61（+stock/sale_stock/stock_account）
+    → -i mrp → 64（+mrp/sale_mrp/mrp_account）
+H1_CONFIRM SO-OLD S00002 state=sale（54 模块时确认）
+H2_OLD_PICKS_AFTER_INSTALL count=0 | OLD_MOVES count=0 | retro-created= NO（装 stock 后旧单零回溯）
+H2_NEW_SO S00003 同一产品 → picks 0->1：WH/OUT/00001 assigned（新单即入库存引擎）
+H3_OLD_TRX S00003 picks 不变 | retro MO= 0（装 mrp 后旧单仍零回溯）
+H3_NEW MTO 产品 FG-H3-MTO → SO=S00004 确认 | picks 1->2 | moves 1->4 | mo 0->1
+H3_MO [('WH/MO/00001', 'confirmed', 'origin=S00004')] | H3_PICKS WH/OUT/00002 waiting
+H3_REL action_view_mrp_production res_id=1 == mo.id MATCH=True
+```
+答：**渐进采用在"addon 安装面"上精确成立**——旧订单（含旧产品）在每次加装引擎后保持原状、零伪造；每次能力升级只改变其后新单据的原生行为；MTO 配置产品在 mrp 级库的 SO 确认自动产 MO。
+
+## 9. STOP Resolution 后的更正边界（替代 §3.1 的旧结论，供 Phase 1+ 引用）
+
+1. **非 MTO（make_to_stock）**：SO 确认不自动 MO/PO；MO 由补货/调度触发（C1/C2/C3 维持）。
+2. **MTO 激活（`stock.route_warehouse0_mto.active=True`）+ 产品带 MTO route**：SO 确认**自动** MO（Manufacture+BoM，E/H3）或 draft RFQ（Buy+供应商，F）。此行为**不可被 capability flag 抑制**。
+3. **Safe Minimal 必须 = 不装 stock/mrp 引擎**（G）；已装引擎的库不存在"flag 关掉即回到无库存事务"的状态（A/B/H2 反向证明）。
+4. 三选项架构裁决 → ADR-006（Proposed）；在裁决前，本审计不把任何选项当作已采纳写入 progressive-adoption/configuration-schema/开发计划。
