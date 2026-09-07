@@ -89,7 +89,26 @@ deployment successful
 
 层级顺序：System Invariants → Architecture/ADR → Product/Scope → Configuration → UI/Workflow → Implementation。问题属于哪一层，就在哪一层修；需要修改更高层时，按 [change-control.md](change-control.md) 分级走流程。
 
----
+## 7. Remote Delivery Verification（远端交付验证）
+
+当任务包含向远端仓库 commit / push / delivery 时，**本地工作区干净不足以证明完成**。真实的完成状态是 `HEAD == origin/<target-branch>`，而不是 `git status` 为空。
+
+声称 COMPLETE 前，Agent 必须依次：
+
+```text
+1. git fetch origin
+2. 识别目标分支（通常为当前分支）
+3. 记录本地 HEAD 完整 SHA（git rev-parse HEAD）
+4. 记录 origin/<target-branch> 完整 SHA（git rev-parse origin/<target-branch>）
+5. 要求 HEAD == origin/<target-branch>
+6. 在报告中给出远端可见的完整 commit SHA
+```
+
+- 若两者 SHA 不同，状态是 **LOCAL_COMPLETE / REMOTE_NOT_DELIVERED**，不是 COMPLETE；必须 push 或按 STOP 流程上报，不得声明完成。
+- push 后必须**再次** `git fetch origin` 并复核相等，因为"推送成功"与"远端接受"须以重新抓取的引用为准。
+- `git status` clean 只描述本地工作区与本地 HEAD 的关系，与远端无关，不能作为交付证据。
+
+真实案例（2026-09-07）：治理系统提交 `a38c6bc` 曾在本地完成、工作区 clean 却未 push，用户从 GitHub 核实发现 `origin/main` 仍停留在旧提交。此规则即为该案例的固化。
 
 ## 宪法与变更分级的关系
 
@@ -101,5 +120,6 @@ deployment successful
 | §4 虚假完成 | 任何 | 补齐证据或改口"未验证" |
 | §5 先读权威 | 任何 | 补读权威后再动 |
 | §6 最小变更 | 任何 | 在最小正确层修复 |
+| §7 远端交付验证 | 含 push/delivery 的任务 | fetch → 比对 SHA → 相等才 COMPLETE |
 
 条款违规本身即 STOP：输出 STOP 报告（[格式](stop-conditions.md#stop-输出格式)），冻结 mutation，等待人类授权。Agent 无权自行豁免宪法条款。
