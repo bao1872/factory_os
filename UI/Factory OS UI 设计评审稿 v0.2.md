@@ -152,7 +152,8 @@ Odoo 顶部 Navbar 展示 Factory OS 的主要应用入口；App Switcher 展示
 13. `Concepts/13-odoo-native-mobile-warehouse.png`：仓库今日任务、扫码收货和生产领料三个移动端单动作工作面。
 14. `Concepts/14-odoo-native-reports-v2.png`：只覆盖交付、生产、质量、库存和供应商五类 MVP 报表，复用 Dashboard/Graph/Pivot/List。v2 已修正顶部应用名称和导航文案漂移；旧稿不再作为基准。
 15. `Concepts/15-odoo-native-settings.png`：历史设置探索稿，已被配置治理评审部分替代；其中全局批次追踪等表达不得实现。
-16. `Concepts/25-odoo-native-setup-and-settings-v2.png`：新的设置基准，覆盖首次六步初始化向导及工厂、订单、采购、库存、生产、质量、交付、通知、用户与角色、集成十个分组；C 类不变量只读呈现，不提供开关。
+16. `Concepts/25-odoo-native-setup-and-settings-v2.png`：历史配置导向向导稿；日常设置页风格仍可参考，但初始化问题不再作为基准。
+17. `Concepts/25-odoo-native-progressive-setup-v3.png`：活动初始化基准。用订单看板、订单+进销存、标准生产、质量追溯四个 Quick Start preset 和六个现实问题生成原子配置；支持一人多岗，不保存管理等级。
 
 ## 9. Odoo 实现边界
 
@@ -186,16 +187,19 @@ Odoo 顶部 Navbar 展示 Factory OS 的主要应用入口；App Switcher 展示
 - “不确定就配置”只适用于业务策略；系统正确性、安全和数据真实性不可配置。
 - 批次/序列号追踪是产品级配置，不设置工厂级总开关。
 - 设置页只使用有界枚举与明确依赖；所有配置变更必须审计。
-- 首次安装使用六步向导生成推荐配置，日常修改仍进入 Odoo `res.config.settings`。
+- 首次安装使用六个现实问题和可选 Quick Start preset 生成推荐配置，日常修改仍进入 Odoo `res.config.settings`；preset 保存后不成为运行时状态。
+- 正式 MRP 关闭时，订单仍可记录人工执行阶段、进度、预计完成、备注和附件，不生成 MO、物料需求或库存事务。
+- Requested Delivery Date 可选；Committed Delivery Date 在订单进入活动执行前必须存在，Draft 可为 TBD。
+- 非必要主数据使用 Just-in-Time Validation，不在首次建档时强制补齐。
 - v0.1 不支持离线事务；网络失败只保留当前页面输入、显示未提交并允许手动重试，服务器确认前不得呈现成功。
 
-配置目录、技术字段、依赖行为与不可变约束分别以 `docs/factory_os/configuration-matrix.md`、`configuration-schema.md`、`configuration-dependency-graph.md` 和 `system-invariants.md` 为准。
+配置目录、技术字段、依赖行为、渐进采用与不可变约束分别以 `docs/factory_os/configuration-matrix.md`、`configuration-schema.md`、`configuration-dependency-graph.md`、`progressive-adoption.md` 和 `system-invariants.md` 为准。
 
 `Concepts/24-mobile-confirmation-and-offline-board.png` 为历史稿，包含错误的“本地保存/自动同步”表达，不得作为开发依据。活动基准为 `Concepts/24-mobile-confirmation-and-network-failure-v2.png`。
 
 ## 11. 页面覆盖状态
 
-活动基准图已经覆盖：全局导航、今日工作台、订单、产品/BOM、采购缺料、采购订单、库存/批次、生产、检验、NCR、交付、追溯、报表、设置，以及操作员/质检/仓库移动端。设置使用 25，网络失败使用 24-v2；15 与旧 24 均不属于活动基准。
+活动基准图已经覆盖：全局导航、今日工作台、订单、产品/BOM、采购缺料、采购订单、库存/批次、生产、检验、NCR、交付、追溯、报表、设置，以及操作员/质检/仓库移动端。初始化使用 25-v3，设置页结构沿用 25-v2 的右侧页面并受新 Schema 约束，网络失败使用 24-v2；15 与旧 24 均不属于活动基准。
 
 客户与供应商不再单独创建强定制母版，直接复用 `res.partner` 的 List/Form/Contact/Chatter，通过默认搜索域、角色权限、smart buttons 和少量 Factory OS 字段区分。这部分沿用 `02-odoo-native-order-form.png` 的表单规范。
 

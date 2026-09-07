@@ -11,10 +11,12 @@
 
 所有依赖检查由 `factory_os_core.configuration_service` 执行，设置页、初始化向导、导入和 RPC 必须调用同一服务。
 
+`factory_execution_state`、`factory_manual_progress`、`factory_estimated_completion_date` 与订单 Chatter/Attachments 属于基础订单能力，不依赖 `mrp_production_enabled`。关闭正式 MRP 不得隐藏或删除这些字段。
+
 ## Graph
 
 ```text
-production_enabled
+mrp_production_enabled
   requires ENABLE_REQUIRED: inventory_enabled, product/BOM capability
   controls AUTO_DISABLE: mobile_operator_enabled, operations_enabled, reporting_mode
   blocks disable when: active MO/workorder exists
@@ -25,6 +27,7 @@ delivery_enabled
   blocks disable when: open outbound picking exists
 
 quality_enabled
+  requires ENABLE_REQUIRED: inventory_enabled
   controls: incoming_inspection_enabled, process_inspection_enabled,
             final_inspection_enabled, incoming_qc_gate, final_qc_gate,
             ncr_creation_policy, reject_inventory_disposition
@@ -35,7 +38,7 @@ incoming_qc_gate
   blocks disable when: receipt is waiting for inspection disposition
 
 final_qc_gate
-  requires: quality_enabled, production_enabled, final_inspection_enabled
+  requires: quality_enabled, final_inspection_enabled
   blocks disable when: quantity is waiting for final inspection or shipment release
 
 purchase_request_mode
@@ -44,7 +47,7 @@ purchase_request_mode
   blocks parent disable when: open purchase request exists
 
 operations_enabled, reporting_mode, mobile_operator_enabled
-  visible_if: production_enabled
+  visible_if: mrp_production_enabled
 
 mobile_warehouse_enabled
   requires: inventory_enabled
@@ -56,7 +59,7 @@ barcode_requirement_warehouse
   visible_if: inventory_enabled AND mobile_warehouse_enabled
 
 barcode_requirement_operator
-  visible_if: production_enabled AND mobile_operator_enabled
+  visible_if: mrp_production_enabled AND mobile_operator_enabled
 
 reports_enabled
   controls AUTO_DISABLE: report_module_keys
@@ -72,24 +75,25 @@ connector_enabled
 
 | key | requires | visible_if | incompatible_with | parent disabled behavior |
 |---|---|---|---|---|
-| `production_enabled` | `inventory_enabled`, product/BOM capability | always | — | BLOCK with active MO/workorder; otherwise AUTO_DISABLE children |
+| `mrp_production_enabled` | `inventory_enabled`, product/BOM capability | always | — | BLOCK with active MO/workorder; otherwise AUTO_DISABLE children |
 | `delivery_enabled` | `inventory_enabled` | always | — | BLOCK with open outbound; otherwise HIDE_KEEP children |
+| `quality_enabled` | `inventory_enabled` | always | — | BLOCK with open inspection/NCR/disposition; otherwise AUTO_DISABLE children |
 | `incoming_inspection_enabled` | `quality_enabled`, `purchasing_enabled` | both parents | — | BLOCK with open inspection; otherwise AUTO_DISABLE |
-| `process_inspection_enabled` | `quality_enabled`, `production_enabled` | both parents | — | BLOCK with open inspection; otherwise AUTO_DISABLE |
-| `final_inspection_enabled` | `quality_enabled`, `production_enabled` | both parents | — | BLOCK while final gate or open inspection exists |
+| `process_inspection_enabled` | `quality_enabled`, `mrp_production_enabled` | both parents | — | BLOCK with open inspection; otherwise AUTO_DISABLE |
+| `final_inspection_enabled` | `quality_enabled` | quality | — | BLOCK while final gate or open inspection exists |
 | `incoming_qc_gate` | `quality_enabled`, `incoming_inspection_enabled`, `purchasing_enabled` | all requirements | — | BLOCK with gated receipts; otherwise AUTO_DISABLE |
-| `final_qc_gate` | `quality_enabled`, `final_inspection_enabled`, `production_enabled` | all requirements | — | BLOCK with unreleased finished goods; otherwise AUTO_DISABLE |
+| `final_qc_gate` | `quality_enabled`, `final_inspection_enabled` | all requirements | — | BLOCK with unreleased finished goods; otherwise AUTO_DISABLE |
 | `purchase_request_mode` | `purchasing_enabled` | purchasing | — | BLOCK with open PR; otherwise set `off` |
 | `purchase_approval_mode` | `purchasing_enabled` | PR=`approval_required` | `none` when approval required | set `none`, clear approver |
-| `operations_enabled` | `production_enabled` | production | — | BLOCK with active workorder; otherwise false |
-| `reporting_mode` | `production_enabled` | production | — | set `manager` |
-| `mobile_operator_enabled` | `production_enabled` | production | — | false |
+| `operations_enabled` | `mrp_production_enabled` | formal MRP | — | BLOCK with active workorder; otherwise false |
+| `reporting_mode` | `mrp_production_enabled` | formal MRP | — | set `manager` |
+| `mobile_operator_enabled` | `mrp_production_enabled` | formal MRP | — | false |
 | `mobile_warehouse_enabled` | `inventory_enabled` | inventory | — | false |
 | `mobile_quality_enabled` | `quality_enabled` | quality | — | false |
-| `barcode_requirement_operator` | production + mobile operator | both | — | set `none` |
+| `barcode_requirement_operator` | formal MRP + mobile operator | both | — | set `none` |
 | `barcode_requirement_warehouse` | inventory + mobile warehouse | both | — | set `none` |
 | `reject_inventory_disposition=return_supplier` | purchasing + inventory + quality | requirements | purchasing off | BLOCK while return disposition records open |
-| `reject_inventory_disposition=rework` | production + inventory + quality | requirements | production off | BLOCK while rework records open |
+| `reject_inventory_disposition=rework` | formal MRP + inventory + quality | requirements | MRP off | BLOCK while rework records open |
 | `delivery_confirmation_mode=tracking` | delivery | delivery | MVP v0.1 | value visible but disabled with “Post-MVP” |
 | `report_module_keys[]` | corresponding module | reports + module | disabled module | AUTO_DISABLE key |
 | `connector_enabled` | endpoint + workspace + credential + allowlist | integration settings | missing requirement | BLOCK activation |

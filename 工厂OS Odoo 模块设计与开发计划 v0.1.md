@@ -17,7 +17,11 @@
 - [`docs/factory_os/configuration-dependency-graph.md`](docs/factory_os/configuration-dependency-graph.md)：requires、visible_if、冲突和依赖关闭行为；
 - [`docs/factory_os/system-invariants.md`](docs/factory_os/system-invariants.md)：C 类正确性、安全、库存、质量、隐私与审计不变量。
 
-两份文件不是参考材料，而是模型约束、设置页、ACL/record rules、服务层校验和自动化测试的验收依据。
+这些文件不是参考材料，而是模型约束、设置页、ACL/record rules、服务层校验和自动化测试的验收依据。
+
+渐进采用基线见 [`docs/factory_os/progressive-adoption.md`](docs/factory_os/progressive-adoption.md)：裸安装只启用销售与订单级简单执行；正式 MRP、库存、质量等能力由向导或后续设置开启。capability flags 只控制 Factory OS 能力/UI/流程，不动态安装或卸载 Odoo addons。
+
+`factory_os_orders` 必须支持不依赖 BOM、库存和 MO 的订单级简单执行状态、人工进度、预计完成日期、备注与附件。`factory_os_production` 才代表正式 MRP/MO 能力；Phase 0 验证 Odoo 19 Community 原生 MO/BOM 行为后再冻结映射。两者不得创建平行生产订单或虚假库存事务。
 
 ---
 
@@ -432,7 +436,7 @@ yellow
 输入：
 
 ```text
-Delivery Date
+Committed Delivery Date
 Material Availability
 Purchase ETA
 Production Progress
@@ -1412,9 +1416,12 @@ docs/factory_os/configuration-matrix.md
 docs/factory_os/configuration-schema.md
 docs/factory_os/configuration-dependency-graph.md
 docs/factory_os/system-invariants.md
+docs/factory_os/progressive-adoption.md
 ```
 
 并输出每项不变量对应的模型约束、服务校验、ACL/record rule 与测试用例映射。未完成该映射，不进入 Phase 1。
+
+Phase 0 还必须验证：Odoo 19 Community 原生 MO/BOM/组件消耗的真实行为；单仓库/少量内部库位时是否可自动推断简单库存展示；所有 PRD 主数据字段是否遵循 Just-in-Time Validation。库存展示优先自动推断，只有证明确有必要时才提议纯展示性质的 simple/advanced 设置。
 
 ---
 
@@ -1466,6 +1473,11 @@ docs/factory_os/model-mapping.md
 | 配置依赖与隐藏逻辑 | PASS |
 | 配置变更审计 | PASS |
 | 系统不变量绕过测试 | PASS |
+| Safe Minimal 裸配置 | PASS |
+| 无 BOM/库存/QC 的订单看板流程 | PASS |
+| Committed Date 状态转换 Gate | PASS |
+| 一人多角色向导映射 | PASS |
+| 主数据 Just-in-Time Validation | PASS |
 
 特别测试：
 

@@ -37,7 +37,8 @@ tests/                  跨模块端到端测试
 4. [`docs/factory_os/configuration-schema.md`](docs/factory_os/configuration-schema.md)：字段名、存储、类型、默认值、约束、权限、审计和消费方的实现权威。
 5. [`docs/factory_os/configuration-dependency-graph.md`](docs/factory_os/configuration-dependency-graph.md)：配置依赖、可见性和禁用行为的实现权威。
 6. [`docs/factory_os/system-invariants.md`](docs/factory_os/system-invariants.md)：不可配置、不可绕过的系统底线。
-7. [`UI/Factory OS UI 设计评审稿 v0.2.md`](UI/Factory%20OS%20UI%20设计评审稿%20v0.2.md)：Odoo 视觉与交互边界。
-8. [`UI/Factory OS 页面与UI覆盖矩阵 v0.3.md`](UI/Factory%20OS%20页面与UI覆盖矩阵%20v0.3.md)：设计覆盖与开发范围；70/70 仅表示设计覆盖。
+7. [`docs/factory_os/progressive-adoption.md`](docs/factory_os/progressive-adoption.md)：Safe Minimal、向导 preset、Just-in-Time Validation 与无迁移升级路径。
+8. [`UI/Factory OS UI 设计评审稿 v0.2.md`](UI/Factory%20OS%20UI%20设计评审稿%20v0.2.md)：Odoo 视觉与交互边界。
+9. [`UI/Factory OS 页面与UI覆盖矩阵 v0.3.md`](UI/Factory%20OS%20页面与UI覆盖矩阵%20v0.3.md)：设计覆盖与开发范围；70/70 仅表示设计覆盖。
 
-Configuration Governance Gate 已通过 [`docs/factory_os/configuration-governance-audit.md`](docs/factory_os/configuration-governance-audit.md)。该结果只授权进入 Phase 0 技术审计，不代表 70 个设计页面全部进入 v0.1 开发。
+Configuration Governance Gate 已通过 [`docs/factory_os/configuration-governance-audit.md`](docs/factory_os/configuration-governance-audit.md)，Progressive Adoption Gate 已通过 [`docs/factory_os/progressive-adoption-audit.md`](docs/factory_os/progressive-adoption-audit.md)。两项结果只授权进入 Phase 0 技术审计，不代表 70 个设计页面全部进入 v0.1 开发。

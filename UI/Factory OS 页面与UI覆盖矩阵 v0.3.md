@@ -66,7 +66,7 @@
 | 45 | 报表 | 供应商分析 | Dashboard/Pivot | 缺失 | 准时率、周期、来料不良 |
 | 46 | 设置 | 工厂OS设置 | Settings | 已完成 | 25 为活动基准；15 为历史稿 |
 | 47 | 设置 | 用户与角色 | List/Form | 缺失 | 用户、角色、访问范围 |
-| 47A | 设置 | 首次初始化向导 | Transient Model Wizard | 已完成 | 25；六步推荐配置 |
+| 47A | 设置 | 首次初始化向导 | Transient Model Wizard | 已完成 | 25-v3；现实问题与 Quick Start preset |
 
 ## 移动端动作页面
 
@@ -163,7 +163,7 @@
 | 45 | 供应商分析 | Designed | Post-MVP | Deferred | Native analytics later |
 | 46 | 工厂OS设置 | Done v2 | MVP-P0 | Core surface 18 | `res.config.settings` extension |
 | 47 | 用户与角色 | Designed | MVP-P0 | Core surface 19 | Native reuse only + scoped fields |
-| 47A | 首次初始化向导 | Done | MVP-P0 | Core surface 20 | Transient Model Wizard |
+| 47A | 首次初始化向导 | Done v3 | MVP-P0 | Core surface 20 | Transient Model Wizard; preset expands to atomic settings |
 | 48 | 移动今日生产任务 | Done | MVP-P1 | Core surface 21 | Responsive native action |
 | 49 | 移动生产报工 | Done | MVP-P1 | Core surface 21 | Thin mobile action |
 | 50 | 移动报告生产异常 | Designed | MVP-P1 | Core surface 21 | Thin mobile action |
@@ -215,7 +215,8 @@
 | `23-login-attachments-and-sync-board.png` | 登录、角色应用菜单、附件、同步日志/数据权限 |
 | `24-mobile-confirmation-and-offline-board.png` | 历史稿，不得实现本地草稿、自动同步或离线事务 |
 | `24-mobile-confirmation-and-network-failure-v2.png` | 活动基准：工序完工、库存调整、检验确认、网络失败/手动重试 |
-| `25-odoo-native-setup-and-settings-v2.png` | 六步初始化向导、十组设置、系统保护只读摘要 |
+| `25-odoo-native-setup-and-settings-v2.png` | 历史配置导向向导；右侧日常设置风格可参考 |
+| `25-odoo-native-progressive-setup-v3.png` | 活动基准：四个 Quick Start preset、六个现实问题、一人多岗 |
 
 ### 设计完成度说明
 
@@ -230,6 +231,6 @@
 
 多页面板用于确认信息结构和交互，不作为像素级实现截图。个别设计板的图像生成结果出现顶部导航字样、示例编号或日期轻微漂移；实现时必须以 01、02、04–14、24-v2、25 的白色 Odoo 原生 Navbar 和本文的准确页面名称为准，禁止照抄漂移文字。
 
-设置相关实现以 25 为准，15 仅保留作历史对比。任何 C 类系统不变量不得因为旧图出现开关而进入开发。
+初始化向导以 25-v3 为准；日常设置页沿用 Odoo `res.config.settings` 结构并以最新 Schema 为准。15 与 25-v2 的向导部分仅保留作历史对比。任何 C 类系统不变量不得因为旧图出现开关而进入开发。
 
 网络失败实现以 `24-mobile-confirmation-and-network-failure-v2.png` 为准；文件名含 `offline-board` 的旧稿仅作历史对比。

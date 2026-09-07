@@ -22,12 +22,12 @@
 | `default_warehouse_id` | `res.company.factory_default_warehouse_id` | Many2one(`stock.warehouse`) | company first active warehouse | same company, active | Admin | inventory required；有活动单据时阻止删除引用 | config audit | supply/production/delivery |
 | `warehouse_ids` / `location_ids` | native `stock.warehouse` / `stock.location` | Native records | one warehouse + standard locations | company consistency; valid hierarchy/usages | Inventory Manager | requires inventory；有库存/移动引用时按 Odoo 阻止删除 | mail tracking | stock.* |
 | `sales_enabled` | `res.company.factory_sales_enabled` | Boolean | true | — | Admin | base capability | config audit | orders/menu service |
-| `purchasing_enabled` | `res.company.factory_purchasing_enabled` | Boolean | true | — | Admin | 被 PR/来料检验引用；破坏性关闭时阻止 | config audit | supply/menu service |
-| `inventory_enabled` | `res.company.factory_inventory_enabled` | Boolean | true | — | Admin | production/delivery/tracking requires；存在依赖时阻止关闭 | config audit | stock/menu service |
-| `production_enabled` | `res.company.factory_production_enabled` | Boolean | true | — | Admin | requires inventory + product/BOM；启用时自动启用二者，关闭时自动关闭纯 UI 从属项 | config audit | production/menu service |
-| `quality_enabled` | `res.company.factory_quality_enabled` | Boolean | true | — | Admin | gates/inspection/NCR requires；存在开放检验或隔离库存时阻止关闭 | config audit | quality/menu service |
-| `delivery_enabled` | `res.company.factory_delivery_enabled` | Boolean | true | — | Admin | requires inventory；存在未完成发货时阻止关闭 | config audit | delivery/menu service |
-| `reports_enabled` | `res.company.factory_reports_enabled` | Boolean | true | — | Admin | 关闭仅隐藏报表入口 | config audit | dashboard/report menu |
+| `purchasing_enabled` | `res.company.factory_purchasing_enabled` | Boolean | false | — | Admin | 被 PR/来料检验引用；破坏性关闭时阻止 | config audit | supply/menu service |
+| `inventory_enabled` | `res.company.factory_inventory_enabled` | Boolean | false | — | Admin | MRP/delivery/tracking requires；存在依赖时阻止关闭 | config audit | stock/menu service |
+| `mrp_production_enabled` | `res.company.factory_mrp_production_enabled` | Boolean | false | — | Admin | means formal MO/BOM capability; requires inventory + product/BOM；启用时自动启用基础依赖，关闭时自动关闭纯 UI 从属项 | config audit | production/menu service |
+| `quality_enabled` | `res.company.factory_quality_enabled` | Boolean | false | — | Admin | requires inventory so rejects have controlled disposition；存在开放检验或隔离库存时阻止关闭 | config audit | quality/menu service |
+| `delivery_enabled` | `res.company.factory_delivery_enabled` | Boolean | false | — | Admin | requires inventory；存在未完成发货时阻止关闭 | config audit | delivery/menu service |
+| `reports_enabled` | `res.company.factory_reports_enabled` | Boolean | false | — | Admin | 关闭仅隐藏报表入口 | config audit | dashboard/report menu |
 | `connector_enabled` | `res.company.factory_connector_enabled` | Boolean | false | credentials and endpoint required before activation | Integration Admin | 无；关闭停止新同步，不删除日志/凭据 | config audit | connector.sync_service |
 
 ## 订单与采购
@@ -35,7 +35,7 @@
 | technical_key | Odoo storage | type / selection | exact default | constraints | group | dependency / disabled behavior | audit | consumer |
 |---|---|---|---|---|---|---|---|---|
 | `quotation_enabled` | `res.company.factory_quotation_enabled` | Boolean | true | — | Sales Manager | visible_if sales | config audit | orders.menu_service |
-| `show_planned_completion_date` | `res.company.factory_show_planned_completion_date` | Boolean | true | only presentation | Admin | visible_if sales or production；父项关闭时自动 false | config audit | orders/views |
+| `show_planned_completion_date` | `res.company.factory_show_planned_completion_date` | Boolean | true | only presentation | Admin | visible_if sales；基础订单执行可用 | config audit | orders/views |
 | `health_warning_days` | `res.company.factory_health_warning_days` | Integer | 7 | `>= 0` and `warning >= critical` | Factory OS Manager | visible_if sales | config audit | orders.health_service |
 | `health_critical_days` | `res.company.factory_health_critical_days` | Integer | 3 | `>= 0` and `critical <= warning` | Factory OS Manager | visible_if sales | config audit | orders.health_service |
 | `fulfillment_chain_display` | `res.company.factory_fulfillment_chain_display` | Selection: `risk_only`/仅风险, `always`/始终, `collapsed`/默认折叠 | `risk_only` | bounded enum | Factory OS Manager | visible_if sales | config audit | orders.form_controller |
@@ -46,7 +46,18 @@
 | `po_late_grace_days` | `res.company.factory_po_late_grace_days` | Integer | 0 | `>= 0` | Purchase Manager | visible_if purchasing | config audit | supply.po_risk_service |
 | `eta_warning_days` | `res.company.factory_eta_warning_days` | Integer | 0 | `>= 0`; 0 means warn on adverse ETA change | Purchase Manager | visible_if purchasing | config audit | supply.po_risk_service |
 
-`sale.order.factory_requested_date` 与 `sale.order.factory_confirmed_date` 为 required Datetime 业务字段，不是配置项；计划完成日期不得代替二者。
+## 基础订单执行字段（始终可用，不是 capability flag）
+
+| technical field | Odoo storage | type / values | default | validation moment | consumer |
+|---|---|---|---|---|---|
+| `factory_execution_state` | `sale.order.factory_execution_state` | Selection: `to_plan`, `to_produce`, `in_progress`, `to_confirm`, `to_ship`, `done` | `to_plan` | order-level manual execution; does not create MO or stock moves | orders.execution_service |
+| `factory_manual_progress` | `sale.order.factory_manual_progress` | Float | 0 | `0 <= value <= 100`; writable only while MRP linkage absent | orders.execution_service |
+| `factory_estimated_completion_date` | `sale.order.factory_estimated_completion_date` | Date | empty | optional | orders.health_service |
+| `factory_committed_date` | `sale.order.factory_committed_date` | Datetime | empty in draft | required when entering confirmed/active execution | orders.health_service |
+| `factory_requested_date` | `sale.order.factory_requested_date` | Datetime | empty | optional; when present calculate expectation gap | orders.health_service |
+| notes / attachments | native `sale.order.note`, `mail.thread`, `ir.attachment` | Native | empty | optional | orders/chatter |
+
+`factory_committed_date` 是风险引擎的最低时间基准。Draft 可显示“交期 TBD”；确认/进入活动执行时由 service constraint 阻止空值。`factory_requested_date` 不得设为 `required=True`。MRP 关闭时人工进度不生成 `mrp.production`、`stock.move`、物料需求或 BOM 消耗；MRP 开启后，新订单可进入正式 MO 链路，历史订单不迁移或重写。
 
 ## 库存与生产
 
@@ -57,21 +68,21 @@
 | `reordering_max_qty` | `stock.warehouse.orderpoint.product_max_qty` | Float | 0 | `>= min_qty` | Inventory Manager | requires inventory | mail tracking | stock.replenishment |
 | `safety_stock_qty` | `stock.warehouse.orderpoint.factory_safety_stock_qty` | Float | 0 | `>= 0` | Inventory Manager | requires inventory | mail tracking | supply.shortage_service |
 | `inventory_count_mode` | `res.company.factory_inventory_count_mode` | Selection: `normal`, `blind` | `normal` | bounded enum | Inventory Manager | requires inventory；关闭库存时自动恢复 `normal` | config audit | stock.count_views |
-| `operations_enabled` | `res.company.factory_operations_enabled` | Boolean | true | — | Production Manager | requires production；存在活动 workorder 时阻止关闭 | config audit | production.workorder_service |
-| `reporting_mode` | `res.company.factory_reporting_mode` | Selection: `manager`, `operator`, `both` | `both` | bounded enum | Production Manager | visible_if production；关闭生产时自动 `manager` | config audit | production.reporting_service |
+| `operations_enabled` | `res.company.factory_operations_enabled` | Boolean | false | — | Production Manager | requires formal MRP；存在活动 workorder 时阻止关闭 | config audit | production.workorder_service |
+| `reporting_mode` | `res.company.factory_reporting_mode` | Selection: `manager`, `operator`, `both` | `manager` | bounded enum | Production Manager | visible_if formal MRP；关闭 MRP 时自动 `manager` | config audit | production.reporting_service |
 | `barcode_requirement_warehouse` | `res.company.factory_barcode_requirement_warehouse` | Selection: `required`, `optional`, `none` | `optional` | bounded enum | Admin | visible_if inventory/mobile warehouse；父项关闭时自动 `none` | config audit | mobile.stock_action_service |
-| `barcode_requirement_operator` | `res.company.factory_barcode_requirement_operator` | Selection: `required`, `optional`, `none` | `optional` | bounded enum | Admin | visible_if production/mobile operator；父项关闭时自动 `none` | config audit | mobile.production_action_service |
+| `barcode_requirement_operator` | `res.company.factory_barcode_requirement_operator` | Selection: `required`, `optional`, `none` | `optional` | bounded enum | Admin | visible_if formal MRP/mobile operator；父项关闭时自动 `none` | config audit | mobile.production_action_service |
 
 ## 质量
 
 | technical_key | Odoo storage | type / selection | exact default | constraints | group | dependency / disabled behavior | audit | consumer |
 |---|---|---|---|---|---|---|---|---|
-| `incoming_inspection_enabled` | `res.company.factory_incoming_inspection_enabled` | Boolean | true | — | Quality Manager | requires quality+purchasing；父项关闭且无开放检验时自动 false，否则阻止 | config audit | quality.trigger_service |
-| `process_inspection_enabled` | `res.company.factory_process_inspection_enabled` | Boolean | true | — | Quality Manager | requires quality+production；同上 | config audit | quality.trigger_service |
-| `final_inspection_enabled` | `res.company.factory_final_inspection_enabled` | Boolean | true | — | Quality Manager | requires quality+production；final gate requires | config audit | quality.trigger_service |
+| `incoming_inspection_enabled` | `res.company.factory_incoming_inspection_enabled` | Boolean | false | — | Quality Manager | requires quality+purchasing；父项关闭且无开放检验时自动 false，否则阻止 | config audit | quality.trigger_service |
+| `process_inspection_enabled` | `res.company.factory_process_inspection_enabled` | Boolean | false | — | Quality Manager | requires quality+MRP；同上 | config audit | quality.trigger_service |
+| `final_inspection_enabled` | `res.company.factory_final_inspection_enabled` | Boolean | false | — | Quality Manager | requires quality；final gate requires | config audit | quality.trigger_service |
 | `incoming_qc_gate` | `res.company.factory_incoming_qc_gate` | Boolean | false | — | Quality Manager | requires quality+incoming inspection；有待处理收货时阻止破坏性关闭，否则自动 false | config audit | quality.incoming_gate_service |
-| `final_qc_gate` | `res.company.factory_final_qc_gate` | Boolean | true when quality enabled | — | Quality Manager | requires quality+final inspection；有待发货/隔离品时阻止关闭 | config audit | quality.final_gate_service |
-| `reject_inventory_disposition` | `res.company.factory_reject_inventory_disposition` | Selection: `quarantine`, `scrap`, `return_supplier`, `rework` | `quarantine` | **无 record_only**；rework requires production, return requires purchasing | Quality Manager | requires quality+inventory；不兼容选项隐藏且存量存在时阻止变更 | config audit | quality.disposition_service |
+| `final_qc_gate` | `res.company.factory_final_qc_gate` | Boolean | false | — | Quality Manager | requires quality+final inspection；有待发货/隔离品时阻止关闭 | config audit | quality.final_gate_service |
+| `reject_inventory_disposition` | `res.company.factory_reject_inventory_disposition` | Selection: `quarantine`, `scrap`, `return_supplier`, `rework` | `quarantine` | **无 record_only**；rework requires formal MRP, return requires purchasing | Quality Manager | requires quality+inventory；不兼容选项隐藏且存量存在时阻止变更 | config audit | quality.disposition_service |
 | `ncr_creation_policy` | `res.company.factory_ncr_creation_policy` | Selection: `manual`, `severity_threshold`, `every_failure` | `severity_threshold` | bounded enum | Quality Manager | requires quality；关闭质量且无开放 NCR 时自动 `manual` | config audit | quality.ncr_service |
 | `ncr_threshold_severity` | `res.company.factory_ncr_threshold_severity` | Selection: `low`, `medium`, `high`, `critical` | `high` | fixed semantic order | Quality Manager | required/visible_if NCR policy=`severity_threshold` | config audit | quality.ncr_service |
 | `severity_low_label` | `res.company.factory_severity_low_label` | Char | 低 | nonempty, label only | Quality Manager | requires quality | config audit | quality.display_service |
@@ -90,13 +101,13 @@ FAIL/Reject 的库存处置与是否创建 NCR 是两个独立事务：先由 `q
 
 | technical_key | Odoo storage | type / selection | exact default | constraints | group | dependency / disabled behavior | audit | consumer |
 |---|---|---|---|---|---|---|---|---|
-| `packaging_fields` | `res.company.factory_packaging_fields` | Selection-set: `carton_count`, `weight`, `cbm`, `photos` | all four | allowlist only | Delivery Manager | visible_if delivery；父项关闭时保留值但隐藏 | config audit | delivery.packaging_views |
+| `packaging_fields` | `res.company.factory_packaging_fields` | Selection-set: `carton_count`, `weight`, `cbm`, `photos` | empty | allowlist only | Delivery Manager | visible_if delivery；出口动作按需 Gate，父项关闭时保留值但隐藏 | config audit | delivery.packaging_views |
 | `shipment_mode` | `res.company.factory_shipment_mode` | Selection: `domestic`, `export`, `both` | `both` | bounded enum | Delivery Manager | requires delivery | config audit | delivery.shipment_views |
 | `delivery_confirmation_mode` | `res.company.factory_delivery_confirmation_mode` | Selection: `manual`, `pod_required`, `tracking` | `manual` | MVP only manual/pod; tracking value reserved and disabled | Delivery Manager | requires delivery | config audit | delivery.confirmation_service |
-| `mobile_warehouse_enabled` | `res.company.factory_mobile_warehouse_enabled` | Boolean | true | — | Admin | requires inventory；父项关闭时自动 false | config audit | mobile.menu_service |
-| `mobile_operator_enabled` | `res.company.factory_mobile_operator_enabled` | Boolean | true | — | Admin | requires production；父项关闭时自动 false | config audit | mobile.menu_service |
-| `mobile_quality_enabled` | `res.company.factory_mobile_quality_enabled` | Boolean | true | — | Admin | requires quality；父项关闭时自动 false | config audit | mobile.menu_service |
-| `operator_scope` | `res.company.factory_operator_scope` | Selection: `own`, `team`, `all` | `own` | record rule must enforce | Admin | visible_if production | config audit | security.operator_rules |
+| `mobile_warehouse_enabled` | `res.company.factory_mobile_warehouse_enabled` | Boolean | false | — | Admin | requires inventory；父项关闭时自动 false | config audit | mobile.menu_service |
+| `mobile_operator_enabled` | `res.company.factory_mobile_operator_enabled` | Boolean | false | — | Admin | requires formal MRP；父项关闭时自动 false | config audit | mobile.menu_service |
+| `mobile_quality_enabled` | `res.company.factory_mobile_quality_enabled` | Boolean | false | — | Admin | requires quality；父项关闭时自动 false | config audit | mobile.menu_service |
+| `operator_scope` | `res.company.factory_operator_scope` | Selection: `own`, `team`, `all` | `own` | record rule must enforce | Admin | visible_if formal MRP | config audit | security.operator_rules |
 | `photo_requirement_exception` | `res.company.factory_photo_requirement_exception` | Selection: `required`, `optional`, `none` | `required` | bounded enum | Factory OS Manager | relevant module enabled | config audit | mobile.attachment_validator |
 | `photo_requirement_qc_fail` | `res.company.factory_photo_requirement_qc_fail` | Selection: `required`, `optional`, `none` | `required` | cannot be `none` for critical fail | Quality Manager | requires quality | config audit | quality.attachment_validator |
 | `photo_requirement_standard` | `res.company.factory_photo_requirement_standard` | Selection: `required`, `optional`, `none` | `optional` | bounded enum | Factory OS Manager | relevant module enabled | config audit | mobile.attachment_validator |

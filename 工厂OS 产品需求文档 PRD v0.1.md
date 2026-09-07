@@ -21,6 +21,14 @@
 
 配置目录以 [`docs/factory_os/configuration-matrix.md`](docs/factory_os/configuration-matrix.md) 为准；技术字段以 [`docs/factory_os/configuration-schema.md`](docs/factory_os/configuration-schema.md) 为准；依赖变化以 [`docs/factory_os/configuration-dependency-graph.md`](docs/factory_os/configuration-dependency-graph.md) 为准；租户隔离、原生状态、库存真相、质量 Gate、安全、Connector 隐私、网络失败和审计底线以 [`docs/factory_os/system-invariants.md`](docs/factory_os/system-invariants.md) 为准。文档冲突时，以更具体且更严格的正确性和安全约束为准。
 
+## 0.2 Progressive Adoption（渐进式采用）
+
+Factory OS 不要求工厂在开始使用前完成流程标准化。工厂可以只从客户、产品、订单、承诺交期和订单级执行进度开始，并在保留既有数据的情况下逐步开启采购、库存、正式 MRP、质量和追溯。
+
+启用高级能力只能增加对适用新动作的约束，不得迁移到平行数据模型、重写历史记录或伪造库存/MRP/追溯。配置默认值、向导问题、Quick Start preset 和升级路径以 [`docs/factory_os/progressive-adoption.md`](docs/factory_os/progressive-adoption.md) 为准。
+
+产品采用 Just-in-Time Validation：Customer/Supplier Code、英文产品名、Barcode、Revision、Default Supplier、Packaging、Payment Terms、Contact Email、Website、Product Photo 均不得无条件必填。最小订单只需客户、产品、数量；进入活动执行前补充承诺交付日期。
+
 ---
 
 # 1. 产品背景
@@ -673,8 +681,8 @@ Header：
 - Customer
 - Customer PO
 - Order Date
-- Requested Delivery Date
-- Confirmed Delivery Date
+- Requested Delivery Date（可选）
+- Committed Delivery Date（Draft 可空，进入 Confirmed/Active Execution 前必填）
 - Currency
 - Status
 - Owner
@@ -1324,8 +1332,8 @@ Factory A
 - Product
 - Qty
 - Price
-- Requested Delivery Date
-- Confirmed Delivery Date
+- Requested Delivery Date（存在时共享）
+- Committed Delivery Date
 - Production Status
 - Production Progress
 - QC Status

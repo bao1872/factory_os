@@ -20,10 +20,10 @@
 | 时区、语言、币种 | A | Asia/Shanghai、简体中文、本位币 CNY | Company | Factory OS Admin | 日期、语言、金额 | 是；变更币种需遵循 Odoo 会计约束 |
 | 重量、长度单位 | A | kg、mm | Company | Factory OS Admin | 产品、包装、物流 | 是 |
 | 默认仓库 | A | 首个启用仓库 | Company | Factory OS Admin | 默认收发、生产位置 | 是；必须引用有效 `stock.warehouse` |
-| 业务模块开关 | A | 销售、采购、库存、生产、质量、交付、报表启用；Connector 关闭 | Company | Factory OS Admin | 菜单、字段、流程 | 是；生产依赖库存与产品/BOM，质量 Gate 依赖质量模块 |
+| 业务能力开关 | A | 仅销售开启；采购、库存、正式 MRP、质量、交付、报表、Connector 关闭 | Company | Factory OS Admin | Factory OS 菜单、字段、流程，不动态安装 addon | 是；正式 MRP 依赖库存与产品/BOM，质量 Gate 依赖质量模块 |
 | 报价单 | B | 开启 | Company | Sales Manager | 报价到订单流程 | 是 |
-| 客户要求日期 | C | 必填 | Order | 不可配置 | 履约承诺 | 由模型约束保证 |
-| 客户确认日期 | C | 必填 | Order | 不可配置 | 排产与交付 | 由模型约束保证 |
+| 客户要求日期 | B | 空，可选 | Order | Sales | 客户期望与承诺差异 | 有值时才计算 expectation gap |
+| 承诺交付日期 | C | Draft 可空；Active 前必填 | Order | 不可配置 | 履约、健康度、交付 | 由状态转换 Gate 保证 |
 | 计划完成日期显示 | B | 显示 | Company | Factory OS Admin | 订单、MO 页面 | 是 |
 | 健康度预警/风险提前天数 | A | 7 天 / 3 天 | Company | Manager | 健康度计算 | 是；正常/预警/风险语义固定 |
 | 履约链默认展示 | B | 仅风险时展开 | Company/User | Manager / User | 订单详情密度 | 是 |
@@ -35,12 +35,13 @@
 | 来料质检 Gate | A | 关闭 | Company/Product | Quality Manager | 收货放行 | 是；启用质量模块后可用 |
 | 最低库存、补货点、安全库存 | A | 空 | Product/Warehouse | Inventory Manager | 补货建议、缺料 | 是；产品/仓库级 |
 | 盘点模式 | A | 普通盘点 | Company/Operation | Inventory Manager | 盘点录入 | 是；普通/盲盘 |
-| 生产工序 | B | 开启 | Company | Production Manager | MO、工序、报工 | 是；关闭时隐藏工序级页面 |
-| 报工模式 | A | 管理员与操作员 | Company | Production Manager | 报工入口 | 是；管理员/操作员/两者 |
+| 正式 MRP/MO | A | 关闭 | Company | Factory OS Admin | BOM、MO、库存消耗 | 是；不影响基础订单执行进度 |
+| 生产工序 | B | 关闭 | Company | Production Manager | MO、工序、报工 | 是；正式 MRP 开启后可用 |
+| 报工模式 | A | 管理员 | Company | Production Manager | 正式 MRP 报工入口 | 是；管理员/操作员/两者 |
 | 条码要求 | A | 仓库和操作员可选 | Role | Factory OS Admin | 移动动作校验 | 是；必需/可选/不用 |
-| 成品质检 Gate | B | 质量模块启用时开启 | Company | Quality Manager | Ready-to-Ship | 是；未通过不得进入待发货 |
+| 成品质检 Gate | B | 关闭 | Company | Quality Manager | Ready-to-Ship | 是；启用后未通过不得进入待发货 |
 | 不合格库存处置 | A | 隔离 | Company | Quality Manager | 隔离、报废、退供应商、返工 | 是；`quarantine/scrap/return_supplier/rework`，不存在 `record_only` |
-| 检验类型 | A | 来料、过程、成品启用 | Company | Quality Manager | 检验菜单与触发点 | 是；各自独立开关 |
+| 检验类型 | A | 全部关闭 | Company | Quality Manager | 检验菜单与触发点 | 是；向导可选择仅成品或完整检验 |
 | NCR 创建策略 | B | 严重度达到 High 时创建 | Company | Quality Manager | 不合格闭环 | 是；`manual/severity_threshold/every_failure`，不影响库存处置 |
 | 严重度阈值与显示名称 | A | Low/Medium/High/Critical | Company | Quality Manager | NCR 优先级、SLA | 是；四级语义固定，只可改阈值和显示名 |
 | NCR SLA | A | 低 7天、中 5天、高 2天、关键 1天 | Company | Quality Manager | 活动截止、超期 | 是；按严重度 |
@@ -86,4 +87,4 @@ C 类不变量不做开关；设置页底部只提供只读“系统保护已启
 
 ## 初始化向导
 
-首次安装只问六个高价值问题：工厂类型、启用模块、是否使用生产工序、是否有需要批次追踪的产品、是否启用成品质检 Gate、创建首批用户。向导据此生成推荐配置；产品追踪仍逐产品设置，向导只能帮助批量建立初始建议，不能创建全局追踪语义。
+首次安装问六个现实问题：想管哪些事情、生产怎么记录、库存怎么管、质量怎么管、哪些产品以后需要追踪、谁会使用系统。向导也可选择订单看板、订单+进销存、标准生产、质量追溯四个 Quick Start preset。所有答案只展开为现有原子配置，不保存管理等级。完整映射见 [`progressive-adoption.md`](progressive-adoption.md)。
